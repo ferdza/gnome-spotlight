@@ -4,6 +4,7 @@ import Meta from "gi://Meta";
 import Shell from "gi://Shell";
 import * as Main from "resource:///org/gnome/shell/ui/main.js";
 
+import { toggleShortcut } from "@app/shortcutToggle";
 import type { Translate } from "@i18n/translate";
 import { GioDirectoryReader } from "@infra/gnome/gioDirectoryReader";
 import { SettingsKey } from "@infra/gnome/settingsKeys";
@@ -61,8 +62,17 @@ export class LauncherSession {
       SettingsKey.TOGGLE_LAUNCHER,
       this.settings,
       Meta.KeyBindingFlags.IGNORE_AUTOREPEAT,
-      Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
-      () => this.overlay.toggle(),
+      Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW | Shell.ActionMode.SYSTEM_MODAL,
+      () => {
+        if (
+          !toggleShortcut(
+            (Main.actionMode as Shell.ActionMode) === Shell.ActionMode.SYSTEM_MODAL,
+            this.overlay.isOpen,
+          )
+        )
+          return;
+        this.overlay.toggle();
+      },
     );
   }
 

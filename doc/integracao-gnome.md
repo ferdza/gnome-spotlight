@@ -22,6 +22,8 @@ Conferido contra o código do gnome-shell 50.5 instalado (extraído de
 
 ## Observações
 
+- Com a busca aberta, o Shell entra no modo `SYSTEM_MODAL`. O atalho funciona nesse modo para
+  fechar a busca, mas não a abre quando outro diálogo modal está ativo.
 - O `gettext` exportado por `extension.js` descobre a extensão pela pilha de chamadas. Com o
   bundle funciona, mas a extensão passa `this.gettext` da instância, que não depende disso.
 - A janela abre no monitor onde está o ponteiro (`Main.layoutManager.currentMonitor`), com
