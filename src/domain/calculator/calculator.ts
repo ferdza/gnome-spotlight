@@ -250,3 +250,6 @@ export const detectDecimalSeparator = (expression: string): string =>
 
 export const formatCalculatorNumber = (value: number, decimalSeparator: string): string =>
   String(roundSignificant(value)).replace(".", decimalSeparator);
+
+export const isConversionCandidate = (term: string): boolean =>
+  /\d/.test(term) && /\p{L}/u.test(term) && !evaluateExpression(term).ok;

@@ -3,6 +3,8 @@ import type { SearchProvider } from "@domain/search/searchProvider";
 import type { SearchResult } from "@domain/search/searchResult";
 
 export abstract class ModeSearchProvider implements SearchProvider {
+  readonly isRemote: boolean = false;
+
   protected constructor(private readonly modes: readonly QueryMode[]) {}
 
   answers(mode: QueryMode): boolean {

@@ -14,5 +14,9 @@
       <default>8</default>
       <summary>Maximum number of results shown</summary>
     </key>
+    <key name="keyword-searches" type="a{ss}">
+      <default>{'@y': 'https://www.youtube.com/results?search_query=%s', '@w': 'https://en.wikipedia.org/w/index.php?search=%s'}</default>
+      <summary>Keyword searches: typing the keyword before the text opens the address, %s is replaced by the text</summary>
+    </key>
   </schema>
 </schemalist>

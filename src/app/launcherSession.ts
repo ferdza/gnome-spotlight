@@ -6,11 +6,14 @@ import * as Main from "resource:///org/gnome/shell/ui/main.js";
 
 import { toggleShortcut } from "@app/shortcutToggle";
 import type { Translate } from "@i18n/translate";
+import { DuckDuckGoClient } from "@infra/gnome/duckDuckGoClient";
 import { GioDirectoryReader } from "@infra/gnome/gioDirectoryReader";
+import { GnomeCalculatorConverter } from "@infra/gnome/gnomeCalculatorConverter";
 import { SettingsKey } from "@infra/gnome/settingsKeys";
 import { ShellAppCatalog } from "@infra/gnome/shellAppCatalog";
 import { ShellCommandRunner } from "@infra/gnome/shellCommandRunner";
 import { ShellLauncher } from "@infra/gnome/shellLauncher";
+import { ShellOverviewProviderCatalog } from "@infra/gnome/shellOverviewProviderCatalog";
 import { ShellSystemActionCatalog } from "@infra/gnome/shellSystemActionCatalog";
 import { ShellWindowCatalog } from "@infra/gnome/shellWindowCatalog";
 import { StClipboard } from "@infra/gnome/stClipboard";
@@ -24,6 +27,9 @@ const describeError = (error: unknown): string =>
 
 export class LauncherSession {
   private readonly apps = new ShellAppCatalog();
+  private readonly webResults = new DuckDuckGoClient();
+  private readonly unitConverter = new GnomeCalculatorConverter();
+  private readonly overviewProviders = new ShellOverviewProviderCatalog();
   private readonly overlay: LauncherOverlay;
 
   constructor(
@@ -40,7 +46,14 @@ export class LauncherSession {
       launcher: new ShellLauncher(),
       clipboard: new StClipboard(),
       commands: new ShellCommandRunner(),
-      settings: { searchUrl: () => settings.get_string(SettingsKey.WEB_SEARCH_URL) },
+      webResults: this.webResults,
+      unitConverter: this.unitConverter,
+      overviewProviders: this.overviewProviders,
+      settings: {
+        searchUrl: () => settings.get_string(SettingsKey.WEB_SEARCH_URL),
+        keywordSearches: () =>
+          settings.get_value(SettingsKey.KEYWORD_SEARCHES).deepUnpack<Record<string, string>>(),
+      },
       homeDirectory: GLib.get_home_dir(),
       translate: t,
     });
@@ -50,7 +63,7 @@ export class LauncherSession {
       (error) => console.warn(`[launchpad-search] search provider failed: ${describeError(error)}`),
     );
     const presenter = new LauncherPresenter(
-      (raw) => service.search(raw),
+      (raw, onUpdate) => service.search(raw, onUpdate),
       this.overlay,
       (error) => this.notifyError(error),
     );
@@ -80,6 +93,9 @@ export class LauncherSession {
     Main.wm.removeKeybinding(SettingsKey.TOGGLE_LAUNCHER);
     this.overlay.destroy();
     this.apps.destroy();
+    this.webResults.destroy();
+    this.unitConverter.destroy();
+    this.overviewProviders.destroy();
   }
 
   private notifyError(error: unknown): void {

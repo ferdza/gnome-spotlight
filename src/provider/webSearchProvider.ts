@@ -1,6 +1,7 @@
 import type { SearchSettings, UriLauncher } from "@domain/launcher/launcherPorts";
 import { QueryMode, type ParsedQuery } from "@domain/query/queryParser";
 import { ResultKind, type SearchResult } from "@domain/search/searchResult";
+import { buildSearchAddress } from "@domain/web/keywordSearch";
 import { formatMessage, type Translate } from "@i18n/translate";
 import { ModeSearchProvider } from "@provider/modeSearchProvider";
 
@@ -28,12 +29,8 @@ export class WebSearchProvider extends ModeSearchProvider {
         kind: ResultKind.WEB,
         icon: { name: "web-browser-symbolic" },
         score: SCORE_BY_MODE[mode] ?? 0,
-        activate: () => this.launcher.openUri(this.buildUrl(term)),
+        activate: () => this.launcher.openUri(buildSearchAddress(this.settings.searchUrl(), term)),
       },
     ];
-  }
-
-  private buildUrl(term: string): string {
-    return this.settings.searchUrl().replace("%s", encodeURIComponent(term));
   }
 }

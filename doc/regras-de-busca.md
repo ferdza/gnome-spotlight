@@ -8,7 +8,7 @@
 | `=` | calculadora | não |
 | `>` | comando no terminal | não |
 | `$` | comando em segundo plano | não |
-| `?` | web | não |
+| `?` | web: 10 resultados do DuckDuckGo + linha da busca completa | não |
 | `/` ou `~` | arquivos | sim, faz parte do caminho |
 
 Termo vazio não consulta nenhum provedor.
@@ -30,6 +30,10 @@ Developer Edition".
 | Ações do sistema | Nome vezes 0,9, com mínimo de 0,5 (o Shell pode casar só pela palavra-chave) |
 | Comandos | 1 |
 | Web | 1 com `?`; 0,01 no modo padrão, sempre por último |
+| Resultados da web (`?`) | 0,9 caindo 0,01 por posição: ficam na ordem do DuckDuckGo, abaixo da linha da busca completa |
+| Atalho de busca (`@y texto`) | 1 |
+| Conversão de unidade | 0,97, como a conta |
+| Provedores do panorama | 0,6 caindo 0,05 por posição (até 3 por provedor): abaixo de app que casou bem |
 | Arquivos | Pasta ganha +0,5. O casamento é arredondado em faixas de 0,1, para nomes parecidos empatarem e caírem em ordem alfabética, como num seletor de arquivos |
 
 ## Calculadora
@@ -44,6 +48,21 @@ Developer Edition".
   (`0.1 + 0.2` dá `0.3`).
 - Divisão por zero, raiz de negativo e fatorial fora de 0 a 170 não geram resultado.
 - Limitação conhecida: `1.000` é lido como 1, não como mil. Separador de milhar não existe.
+
+## Conversão de unidade
+
+- Só consulta a Calculadora do GNOME se o texto tem dígito e letra e a calculadora da
+  extensão não resolveu. `2 + 2` nunca vai ao D-Bus.
+- O texto vai como termos separados por espaço, igual ao panorama, e a resposta usada é o
+  `clipboardText` do primeiro resultado (o `open-in-calculator-…` é ignorado).
+
+## Atalhos de busca
+
+- A primeira palavra tem que ser exatamente um atalho configurado (sem diferenciar
+  maiúsculas) e precisa vir texto depois. `@y` sozinho não gera linha.
+- O texto entra no `%s` do endereço com `encodeURIComponent`.
+- No formulário das preferências, atalho não pode ter espaço e o endereço precisa começar
+  com `http://` ou `https://` e ter `%s`.
 
 ## Comandos
 

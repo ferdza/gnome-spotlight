@@ -9,13 +9,18 @@ export interface LauncherView {
   close(): void;
 }
 
-export type SearchFunction = (raw: string) => Promise<readonly SearchResult[]>;
+export type ResultsListener = (results: readonly SearchResult[]) => void;
+export type SearchFunction = (
+  raw: string,
+  onUpdate: ResultsListener,
+) => Promise<readonly SearchResult[]>;
 export type ErrorListener = (error: unknown) => void;
 
 export class LauncherPresenter {
   private results: readonly SearchResult[] = [];
   private readonly cursor = new SelectionCursor();
   private readonly gate = new LatestRequestGate();
+  private hasMovedSelection = false;
 
   constructor(
     private readonly search: SearchFunction,
@@ -25,13 +30,17 @@ export class LauncherPresenter {
 
   async onQueryChanged(text: string): Promise<void> {
     const token = this.gate.next();
-    const results = await this.searchSafely(text);
+    this.hasMovedSelection = false;
+    const results = await this.searchSafely(text, (update) => {
+      if (this.gate.isCurrent(token)) this.show(update);
+    });
     if (!this.gate.isCurrent(token)) return;
 
     this.show(results);
   }
 
   onMoveSelection(delta: number): void {
+    this.hasMovedSelection = true;
     this.cursor.move(delta);
     this.view.renderSelection(this.cursor.index);
   }
@@ -73,9 +82,12 @@ export class LauncherPresenter {
     this.show([]);
   }
 
-  private async searchSafely(text: string): Promise<readonly SearchResult[]> {
+  private async searchSafely(
+    text: string,
+    onUpdate: ResultsListener,
+  ): Promise<readonly SearchResult[]> {
     try {
-      return await this.search(text);
+      return await this.search(text, onUpdate);
     } catch (error) {
       this.onError(error);
       return [];
@@ -83,8 +95,10 @@ export class LauncherPresenter {
   }
 
   private show(results: readonly SearchResult[]): void {
+    const selectedId = this.hasMovedSelection ? this.results[this.cursor.index]?.id : undefined;
     this.results = results;
     this.cursor.reset(results.length);
+    this.cursor.select(results.findIndex((result) => result.id === selectedId));
     this.view.renderResults(results, this.cursor.index);
   }
 }

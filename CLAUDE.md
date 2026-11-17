@@ -65,6 +65,16 @@ prefixo do log. Classes, arquivos e classes CSS usam o nome genérico `Launcher`
   propriedade que o tema já define num ator nativo, use estilo inline (`style:` /
   `set_style`), que o St aplica por último.
 
+- Provedor que sai da máquina (internet, D-Bus, panorama) declara `isRemote = true`. O
+  `SearchService` não espera remoto para desenhar: entrega prévia pelo `onUpdate`. Provedor do
+  panorama pode nunca responder (Agenda e Firefox no teste headless).
+- A lista de provedores do panorama é campo privado do Shell
+  (`searchController._searchResults._providers`). Conferir a cada versão nova do Shell.
+- Resultado remoto pode chegar depois do `disable()`: a view zera o presenter antes de
+  destruir os atores.
+- O DuckDuckGo devolve HTTP 202 (página anti-robô) quando acha que é robô. Teste manual em
+  sequência dispara isso; não é bug do parser.
+
 ## Duplicado de propósito
 
 `scripts/build.ts`, `scripts/pack.ts`, `scripts/build/moduleTranspiler.ts` (e o teste dele),

@@ -1,7 +1,13 @@
-# Mensagens traduzíveis de gnome-spotlight.
+# Mensagens traduzíveis de launchpad-search.
 msgid ""
 msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Add"
+msgstr ""
+
+msgid "Address (%s is the searched text)"
+msgstr ""
 
 msgid "App"
 msgstr ""
@@ -39,7 +45,16 @@ msgstr ""
 msgid "Folder"
 msgstr ""
 
+msgid "Keyword"
+msgstr ""
+
+msgid "Keyword searches"
+msgstr ""
+
 msgid "Maximum results"
+msgstr ""
+
+msgid "New keyword search"
 msgstr ""
 
 msgid "Prefixes"
@@ -51,6 +66,9 @@ msgstr ""
 msgid "Press the new shortcut"
 msgstr ""
 
+msgid "Remove"
+msgstr ""
+
 msgid "Run in background"
 msgstr ""
 
@@ -58,6 +76,9 @@ msgid "Run in terminal"
 msgstr ""
 
 msgid "Search"
+msgstr ""
+
+msgid "Search %s for “%s”"
 msgstr ""
 
 msgid "Search apps, windows, files or type a calculation"
@@ -76,6 +97,9 @@ msgid "Switch to %s"
 msgstr ""
 
 msgid "System"
+msgstr ""
+
+msgid "Type the keyword before the text, for example: @y cats"
 msgstr ""
 
 msgid "Use Super, Ctrl or Alt together with another key."

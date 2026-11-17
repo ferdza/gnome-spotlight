@@ -3,9 +3,16 @@
  * Nenhuma depende do GNOME.
  */
 import type { AppCatalog, AppEntry } from "@domain/apps/appPorts";
+import type { UnitConverter } from "@domain/calculator/calculatorPorts";
 import type { DirectoryReader, FileEntry } from "@domain/files/filePorts";
 import type { Clipboard, CommandRunner, UriLauncher } from "@domain/launcher/launcherPorts";
+import type {
+  OverviewProvider,
+  OverviewProviderCatalog,
+  OverviewResult,
+} from "@domain/overview/overviewPorts";
 import type { SystemActionCatalog, SystemActionEntry } from "@domain/system/systemActionPorts";
+import type { WebPage, WebResultsClient } from "@domain/web/webPorts";
 import type { WindowCatalog, WindowEntry } from "@domain/windows/windowPorts";
 import type { Translate } from "@i18n/translate";
 
@@ -103,4 +110,56 @@ export const makeDirectoryReader = (tree: Record<string, FileEntry[]>) => {
     },
   };
   return { reader };
+};
+
+export const makeWebResultsClient = (pages: WebPage[]) => {
+  const searched: string[] = [];
+  const client: WebResultsClient = {
+    find: async (term) => {
+      searched.push(term);
+      return pages;
+    },
+  };
+  return { client, searched };
+};
+
+export const makeUnitConverter = (answers: Record<string, string>) => {
+  const asked: string[] = [];
+  const converter: UnitConverter = {
+    convert: async (expression) => {
+      asked.push(expression);
+      return answers[expression];
+    },
+  };
+  return { converter, asked };
+};
+
+type FakeOverviewResult = Omit<OverviewResult, "activate">;
+
+export const makeOverviewCatalog = (
+  providers: Record<string, { name?: string; results: FakeOverviewResult[] | Error }>,
+) => {
+  const activated: string[] = [];
+  const searched: Array<{ provider: string; terms: readonly string[] }> = [];
+  const toProvider = ([id, { name, results }]: [
+    string,
+    { name?: string; results: FakeOverviewResult[] | Error },
+  ]): OverviewProvider => ({
+    id,
+    name,
+    search: async (terms) => {
+      searched.push({ provider: id, terms });
+      if (results instanceof Error) throw results;
+      return results.map((item) => ({
+        ...item,
+        activate: () => {
+          activated.push(`${id}:${item.id}`);
+        },
+      }));
+    },
+  });
+  const catalog: OverviewProviderCatalog = {
+    list: () => Object.entries(providers).map(toProvider),
+  };
+  return { catalog, activated, searched };
 };

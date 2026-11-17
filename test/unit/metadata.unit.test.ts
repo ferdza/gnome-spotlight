@@ -35,6 +35,10 @@ describe("metadata.json", () => {
     expect(metadata.description).toContain("clipboard");
   });
 
+  test("declara o envio da busca com `?` ao DuckDuckGo", () => {
+    expect(metadata.description).toContain("DuckDuckGo");
+  });
+
   test("não cita produto de terceiros", () => {
     expect(`${metadata.name} ${metadata.description}`).not.toMatch(/spotlight|macos|cosmic/i);
   });

@@ -9,6 +9,7 @@ export const ResultKind = {
   FOLDER: "folder",
   SYSTEM: "system",
   WEB: "web",
+  PROVIDER: "provider",
 } as const;
 export type ResultKind = (typeof ResultKind)[keyof typeof ResultKind];
 
@@ -18,6 +19,7 @@ export interface SearchResult {
   readonly id: string;
   readonly title: string;
   readonly subtitle?: string;
+  readonly label?: string;
   readonly kind: ResultKind;
   readonly icon: SearchIcon;
   readonly score: number;

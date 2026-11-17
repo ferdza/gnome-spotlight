@@ -12,11 +12,14 @@ import {
   makeCommandRunner,
   makeDirectoryReader,
   makeLauncher,
+  makeOverviewCatalog,
   makeSystemActionCatalog,
+  makeUnitConverter,
+  makeWebResultsClient,
   makeWindowCatalog,
 } from "@test/support/fakes";
 
-const providers = createSearchProviders({
+const listProviders = createSearchProviders({
   apps: makeAppCatalog([]).catalog,
   windows: makeWindowCatalog([]).catalog,
   systemActions: makeSystemActionCatalog([]).catalog,
@@ -24,17 +27,25 @@ const providers = createSearchProviders({
   launcher: makeLauncher().launcher,
   clipboard: makeClipboard().clipboard,
   commands: makeCommandRunner().runner,
-  settings: { searchUrl: () => "https://example.com/?q=%s" },
+  webResults: makeWebResultsClient([]).client,
+  unitConverter: makeUnitConverter({}).converter,
+  overviewProviders: makeOverviewCatalog({
+    applications: { name: "Apps", results: [] },
+    "org.gnome.Calculator.desktop": { name: "Calculator", results: [] },
+    "org.gnome.Settings.desktop": { name: "Settings", results: [] },
+    "youtube@ext": { results: [] },
+  }).catalog,
+  settings: { searchUrl: () => "https://example.com/?q=%s", keywordSearches: () => ({}) },
   homeDirectory: "/home/maria",
   translate: identity,
 });
 
 describe("createSearchProviders", () => {
-  test("cria os sete provedores", () => {
-    expect(providers).toHaveLength(7);
+  test("cria as dez fontes da extensão e uma por provedor do panorama que ela não cobre", () => {
+    expect(listProviders()).toHaveLength(12);
   });
 
   test.each(Object.values(QueryMode))("o modo %p tem pelo menos um provedor", (mode) => {
-    expect(providers.some((provider) => provider.answers(mode))).toBe(true);
+    expect(listProviders().some((provider) => provider.answers(mode))).toBe(true);
   });
 });

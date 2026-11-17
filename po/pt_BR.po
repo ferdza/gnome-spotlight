@@ -97,3 +97,27 @@ msgstr "Endereço da busca na web (%s é o texto buscado)"
 
 msgid "Window"
 msgstr "Janela"
+
+msgid "Add"
+msgstr "Adicionar"
+
+msgid "Address (%s is the searched text)"
+msgstr "Endereço (%s é o texto buscado)"
+
+msgid "Keyword"
+msgstr "Atalho"
+
+msgid "Keyword searches"
+msgstr "Atalhos de busca"
+
+msgid "New keyword search"
+msgstr "Novo atalho de busca"
+
+msgid "Remove"
+msgstr "Remover"
+
+msgid "Search %s for “%s”"
+msgstr "Pesquisar em %s: “%s”"
+
+msgid "Type the keyword before the text, for example: @y cats"
+msgstr "Digite o atalho antes do texto, por exemplo: @y gatos"

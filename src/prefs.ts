@@ -7,6 +7,7 @@ import {
 } from "resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js";
 
 import { SettingsKey } from "@infra/gnome/settingsKeys";
+import { KeywordSearchGroups } from "@prefs/keywordSearchGroups";
 import { ShortcutRow } from "@prefs/shortcutRow";
 
 interface PrefixHelp {
@@ -29,6 +30,10 @@ export default class LauncherPreferences extends ExtensionPreferences {
 
     page.add(this.buildSearchGroup(settings));
     page.add(this.buildPrefixGroup());
+
+    const keywordSearches = new KeywordSearchGroups(settings);
+    page.add(keywordSearches.listGroup);
+    page.add(keywordSearches.formGroup);
     window.add(page);
   }
 

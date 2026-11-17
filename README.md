@@ -1,7 +1,9 @@
 # Launchpad Search para GNOME Shell
 
-Barra de busca no Super+Alt+Espaço. Digite e ela acha apps, janelas abertas, faz contas, roda
-comandos, navega por pastas, dispara ações do sistema e pesquisa na web.
+Barra de busca no Super+Alt+Espaço. Digite e ela acha apps, janelas abertas, faz contas e
+conversões de unidade, roda comandos, navega por pastas, dispara ações do sistema, pesquisa na
+web e mostra os resultados dos provedores de busca do panorama (Configurações, Arquivos,
+Software, extensões que registram provedor).
 
 Feita para o GNOME Shell 50 e 51.
 
@@ -12,10 +14,13 @@ Feita para o GNOME Shell 50 e 51.
 | `fire` | Apps e janelas abertas que casam com o texto, ações do sistema, e uma conta se o texto for uma |
 | `2 + 3 * 4`, `sqrt(2)`, `15%`, `5!` | O resultado. Enter copia para a área de transferência |
 | `= pi` | Modo calculadora explícito (aceita constante sozinha) |
+| `2 inch em cm`, `100 f in c` | Conversão de unidade pela Calculadora do GNOME. Enter copia |
 | `> htop` | Abre o comando no terminal e deixa o shell aberto para você ler a saída |
 | `$ notify-send oi` | Roda o comando em segundo plano, sem janela |
 | `~/Doc`, `/usr/sh` | Arquivos e pastas daquele caminho. Tab completa, Enter abre |
-| `? gnome shell` | Pesquisa na web |
+| `? gnome shell` | Os 10 primeiros resultados do DuckDuckGo, mais a linha que abre a busca completa |
+| `@y gatos`, `@w gnome` | Atalho de busca: abre a pesquisa do site configurado (YouTube, Wikipédia...) |
+| `wi-fi`, `bateria` | Também os resultados dos provedores do panorama (painéis de Configurações, por exemplo) |
 | `bloquear`, `suspender` | Ações do sistema (bloquear, suspender, reiniciar, desligar, sair) |
 
 Teclas: setas navegam, Enter abre, Tab completa caminho, Esc limpa o texto e o segundo Esc fecha.
@@ -41,9 +46,23 @@ A extensão não mexe nos atalhos do sistema. Para usar Super+Espaço, tire ante
 ## Preferências
 
 - Atalho
-- Máximo de resultados (3 a 20, padrão 8)
+- Máximo de resultados (3 a 20, padrão 8; a busca com `?` mostra pelo menos 11 linhas)
 - Endereço da busca na web, com `%s` no lugar do texto (padrão Google)
 - Cola dos prefixos
+- Atalhos de busca: palavra (`@y`) + endereço com `%s`. Vêm `@y` (YouTube) e `@w`
+  (Wikipédia); a lista aceita incluir e remover
+
+## Internet e outros provedores
+
+- Só a busca com `?` consulta a internet sozinha: o texto vai para
+  `html.duckduckgo.com`, depois de 350 ms sem digitar. O DuckDuckGo não tem API oficial de
+  resultados e às vezes responde com a página anti-robô (HTTP 202); nesse caso só aparece a
+  linha que abre a busca no navegador, e o motivo vai para o log do Shell.
+- Conversão de unidade usa o provedor de busca da Calculadora do GNOME por D-Bus, o mesmo que
+  o panorama consulta. Sem a Calculadora instalada, a conversão simplesmente não aparece.
+- Os provedores do panorama são os mesmos que o GNOME usa ao digitar na Visão geral, e
+  respeitam o que estiver ligado em Configurações > Pesquisar. Cada um aparece quando
+  responde; um provedor lento não segura os outros.
 
 ## Traduções
 

@@ -1,3 +1,5 @@
+import type { KeywordSearches } from "@domain/web/keywordSearch";
+
 export interface UriLauncher {
   openUri(uri: string): void;
   openPath(path: string): void;
@@ -14,4 +16,5 @@ export interface CommandRunner {
 
 export interface SearchSettings {
   searchUrl(): string;
+  keywordSearches(): KeywordSearches;
 }

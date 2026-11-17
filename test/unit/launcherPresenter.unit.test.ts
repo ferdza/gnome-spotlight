@@ -156,6 +156,52 @@ describe("LauncherPresenter", () => {
     expect(state.results.map((r) => r.id)).toEqual(["novo"]);
   });
 
+  test("resultados locais aparecem antes e a lista completa substitui", async () => {
+    const { view, state, calls } = makeView();
+    const presenter = new LauncherPresenter(async (_raw, onEarly) => {
+      onEarly([result("local")]);
+      expect(state.results.map((r) => r.id)).toEqual(["local"]);
+      return [result("remoto"), result("local")];
+    }, view);
+
+    await presenter.onQueryChanged("x");
+
+    expect(calls).toEqual(["render", "render"]);
+    expect(state.results.map((r) => r.id)).toEqual(["remoto", "local"]);
+    expect(state.selected).toBe(0);
+  });
+
+  test("lista completa não tira a seleção que o usuário moveu", async () => {
+    const { view, state } = makeView();
+    const remote = deferred<SearchResult[]>();
+    const presenter = new LauncherPresenter((_raw, onEarly) => {
+      onEarly([result("a"), result("b")]);
+      return remote.promise;
+    }, view);
+
+    const pending = presenter.onQueryChanged("x");
+    presenter.onMoveSelection(1);
+    remote.resolve([result("novo"), result("a"), result("b")]);
+    await pending;
+
+    expect(state.results[state.selected]?.id).toBe("b");
+  });
+
+  test("entrega antecipada de uma digitação antiga é descartada", async () => {
+    const { view, state } = makeView();
+    let sendLate!: () => void;
+    const presenter = new LauncherPresenter(async (raw, onEarly) => {
+      if (raw === "velho") sendLate = () => onEarly([result("velho")]);
+      return [result(raw)];
+    }, view);
+
+    await presenter.onQueryChanged("velho");
+    await presenter.onQueryChanged("novo");
+    sendLate();
+
+    expect(state.results.map((r) => r.id)).toEqual(["novo"]);
+  });
+
   test("reset limpa a lista e invalida buscas em andamento", async () => {
     const { view, state } = makeView();
     const slow = deferred<SearchResult[]>();

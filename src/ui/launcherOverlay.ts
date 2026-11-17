@@ -6,7 +6,7 @@ import { MonitorConstraint } from "resource:///org/gnome/shell/ui/layout.js";
 import * as Main from "resource:///org/gnome/shell/ui/main.js";
 
 import { PanelSurface, resolvePanelSurface } from "@domain/appearance/panelSurface";
-import { getResultKindLabel } from "@domain/search/resultKindLabel";
+import { getResultLabel } from "@domain/search/resultKindLabel";
 import type { SearchResult } from "@domain/search/searchResult";
 import type { Translate } from "@i18n/translate";
 import { hasBlurMyShell } from "@infra/gnome/blurProvider";
@@ -154,6 +154,8 @@ export class LauncherOverlay implements LauncherView {
   }
 
   destroy(): void {
+    this.listener?.reset();
+    this.listener = null;
     this.close();
     this.backdrop.destroy();
   }
@@ -164,7 +166,7 @@ export class LauncherOverlay implements LauncherView {
       (result, index) =>
         new ResultRow(
           result,
-          getResultKindLabel(result.kind, this.t),
+          getResultLabel(result, this.t),
           () => void this.listener?.onActivateAt(index),
         ),
     );

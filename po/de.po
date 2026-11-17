@@ -100,3 +100,27 @@ msgstr "Adresse für die Websuche (%s wird durch den Suchbegriff ersetzt)"
 
 msgid "Window"
 msgstr "Fenster"
+
+msgid "Add"
+msgstr "Hinzufügen"
+
+msgid "Address (%s is the searched text)"
+msgstr "Adresse (%s wird durch den Suchbegriff ersetzt)"
+
+msgid "Keyword"
+msgstr "Kürzel"
+
+msgid "Keyword searches"
+msgstr "Suchkürzel"
+
+msgid "New keyword search"
+msgstr "Neues Suchkürzel"
+
+msgid "Remove"
+msgstr "Entfernen"
+
+msgid "Search %s for “%s”"
+msgstr "Auf %s suchen: „%s“"
+
+msgid "Type the keyword before the text, for example: @y cats"
+msgstr "Kürzel vor den Text schreiben, zum Beispiel: @y Katzen"

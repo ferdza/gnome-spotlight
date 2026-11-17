@@ -19,8 +19,22 @@ Conferido contra o código do gnome-shell 50.5 instalado (extraído de
 | Rolagem até a linha | `misc/animationUtils.js` `ensureActorVisibleInScrollView` | `launcherOverlay.ts` |
 | CSS claro/escuro | O Shell carrega `stylesheet-<variante>.css` antes de `stylesheet.css` (`extensionSystem.js`) | `scripts/build.ts` |
 | Tradução | `this.gettext` da instância de `Extension` | `extension.ts` |
+| Resultados da web | `Soup.Session.send_and_read_async` em `html.duckduckgo.com/html/` | `duckDuckGoClient.ts` |
+| Conversão de unidade | D-Bus `org.gnome.Calculator.SearchProvider`, `GetInitialResultSet` + `GetResultMetas` (`clipboardText`) | `gnomeCalculatorConverter.ts` |
+| Provedores do panorama | `searchController._searchResults._providers`: `getInitialResultSet`, `filterResults`, `getResultMetas`, `activateResult(id, terms)` | `shellOverviewProviderCatalog.ts` |
 
 ## Observações
+
+- Provedores do panorama demoram muito diferente: no teste, a maioria respondeu em menos de
+  200 ms, o Software levou 6 s e Agenda e Firefox não responderam em 12 s. Por isso o
+  serviço entrega a lista aos poucos em vez de esperar todos.
+- Provedor de extensão costuma ter `appInfo = null`; aí o rótulo da linha é "Busca" em vez do
+  nome do app. O ícone vem de `createIcon(size)` (só o `gicon` de um `St.Icon` é
+  aproveitado; o ator é destruído em seguida), senão do `appInfo`.
+- A Calculadora responde conforme o idioma da sessão: `2 inch em cm` dá `5,08` em pt_BR.
+  Câmbio (`10 usd to brl`) não respondeu no teste.
+- Na desativação a view zera o presenter antes de destruir os atores: resultado remoto que
+  chega depois iria desenhar num `St.BoxLayout` já destruído.
 
 - Com a busca aberta, o Shell entra no modo `SYSTEM_MODAL`. O atalho funciona nesse modo para
   fechar a busca, mas não a abre quando outro diálogo modal está ativo.

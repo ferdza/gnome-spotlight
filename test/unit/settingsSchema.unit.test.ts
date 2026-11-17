@@ -33,4 +33,12 @@ describe("schema GSettings", () => {
       "<default><![CDATA[['<Super><Alt>space']]]></default>",
     );
   });
+
+  test("vem com atalhos de busca para YouTube e Wikipédia", () => {
+    const block = keyBlockOf(SettingsKey.KEYWORD_SEARCHES);
+
+    expect(block).toContain('type="a{ss}"');
+    expect(block).toContain("'@y': 'https://www.youtube.com/results?search_query=%s'");
+    expect(block).toContain("'@w': 'https://en.wikipedia.org/w/index.php?search=%s'");
+  });
 });
