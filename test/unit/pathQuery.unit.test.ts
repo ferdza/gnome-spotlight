@@ -4,7 +4,7 @@
  */
 import { describe, expect, test } from "bun:test";
 
-import { abbreviateHome, parsePathQuery } from "@domain/files/pathQuery";
+import { abbreviateHome, parsePathQuery, toFilesQuery } from "@domain/files/pathQuery";
 
 const HOME = "/home/maria";
 
@@ -45,5 +45,17 @@ describe("abbreviateHome", () => {
 
   test("não confunde prefixo parecido", () => {
     expect(abbreviateHome("/home/mariana/x", HOME)).toBe("/home/mariana/x");
+  });
+});
+
+describe("toFilesQuery", () => {
+  test.each([
+    ["", "~/"],
+    ["doc", "~/doc"],
+    ["~/Docs/", "~/Docs/"],
+    ["/etc", "/etc"],
+    ["~", "~"],
+  ])("%j vira %j", (text, expected) => {
+    expect(toFilesQuery(text)).toBe(expected);
   });
 });

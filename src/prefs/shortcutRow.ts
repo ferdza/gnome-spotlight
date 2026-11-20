@@ -27,12 +27,11 @@ export class ShortcutRow {
   constructor(
     private readonly settings: Gio.Settings,
     private readonly key: string,
-    title: string,
   ) {
     this.label = new Gtk.ShortcutLabel({ disabled_text: _("Disabled"), valign: Gtk.Align.CENTER });
     const button = new Gtk.Button({ label: _("Change"), valign: Gtk.Align.CENTER });
 
-    this.row = new Adw.ActionRow({ title, activatable_widget: button });
+    this.row = new Adw.ActionRow({ title: _("Shortcut"), activatable_widget: button });
     this.row.add_suffix(this.label);
     this.row.add_suffix(button);
 

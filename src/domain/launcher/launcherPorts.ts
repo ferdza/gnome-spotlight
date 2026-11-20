@@ -3,6 +3,7 @@ import type { KeywordSearches } from "@domain/web/keywordSearch";
 export interface UriLauncher {
   openUri(uri: string): void;
   openPath(path: string): void;
+  revealPath(path: string): void;
 }
 
 export interface Clipboard {

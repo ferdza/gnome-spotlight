@@ -66,6 +66,7 @@ export const makeSystemActionCatalog = (actions: FakeSystemAction[]) => {
 export const makeLauncher = () => {
   const uris: string[] = [];
   const paths: string[] = [];
+  const revealed: string[] = [];
   const launcher: UriLauncher = {
     openUri: (uri) => {
       uris.push(uri);
@@ -73,8 +74,11 @@ export const makeLauncher = () => {
     openPath: (path) => {
       paths.push(path);
     },
+    revealPath: (path) => {
+      revealed.push(path);
+    },
   };
-  return { launcher, uris, paths };
+  return { launcher, uris, paths, revealed };
 };
 
 export const makeClipboard = () => {

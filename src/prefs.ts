@@ -40,8 +40,7 @@ export default class LauncherPreferences extends ExtensionPreferences {
   private buildSearchGroup(settings: Gio.Settings): Adw.PreferencesGroup {
     const group = new Adw.PreferencesGroup({ title: _("Search") });
 
-    group.add(new ShortcutRow(settings, SettingsKey.TOGGLE_LAUNCHER, _("Search shortcut")).row);
-    group.add(new ShortcutRow(settings, SettingsKey.TOGGLE_LAUNCHPAD, _("App grid shortcut")).row);
+    group.add(new ShortcutRow(settings, SettingsKey.TOGGLE_LAUNCHER).row);
 
     const maxResults = new Adw.SpinRow({
       title: _("Maximum results"),

@@ -59,7 +59,8 @@ export class FileSearchProvider extends ModeSearchProvider {
         icon: entry.icon,
         score: (entry.isDirectory ? FOLDER_BONUS : 0) + roundToBand(match) * MATCH_SHARE,
         completion: entry.isDirectory ? `${display}/` : display,
-        activate: () => this.launcher.openPath(path),
+        activate: () =>
+          entry.isDirectory ? this.launcher.openPath(path) : this.launcher.revealPath(path),
       },
     ];
   }

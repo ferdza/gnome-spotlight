@@ -55,14 +55,20 @@ Super+Espaço continua sendo "trocar fonte de entrada".
   disponível agora e casa as palavras-chave traduzidas, então a extensão não mantém lista
   própria.
 
-## Launchpad (grade de apps)
+## Bolhas, modo Apps e modo Arquivos
 
-- `domain/launchpad/appGrid.ts` é o modelo puro: filtra e ordena os apps (mesmo `textMatcher`
-  da busca), pagina e move a seleção na grade. `ui/launchpadOverlay.ts` só desenha e traduz
-  evento (setas, Page Up/Down, roda do mouse, Enter, Esc, clique no fundo e nas bolinhas).
-- Atalho próprio (`toggle-launchpad`, padrão Super+Alt+L). Abrir um fecha o outro, os dois usam
-  `pushModal`.
-- Tamanho da grade vem do monitor do ponteiro (`computeShape`); a seleção sobrevive à mudança.
-- Blur: o fundo leva `clipboard-dialog`, como o painel da busca. Sem o Blur my Shell fica um
-  fundo sólido (`resolvePanelSurface`). Ainda não conferido num Shell real: se o Blur my Shell
-  arredondar os cantos da tela inteira, o ajuste é no raio ou no ator que recebe a classe.
+- Um atalho só. Ao lado do painel ficam duas bolhas redondas (Apps e Arquivos) que saem de
+  trás da barra, escalonadas, depois de 650 ms ou no primeiro movimento do mouse
+  (`revealBubbles`). Ctrl+1 e Ctrl+2 fazem o mesmo pelo teclado; clicar na bolha ativa de novo,
+  ou Esc com a caixa vazia, volta à busca normal.
+- Modo Apps: `domain/apps/appGrid.ts` é o modelo puro (filtro com o mesmo `textMatcher`, ordem
+  alfabética, movimento nas setas). A view desenha uma grade de 5 colunas com TODOS os apps,
+  sem categorias, dentro do próprio painel; digitar filtra.
+- Modo Arquivos: não tem provedor novo. A caixa vazia vira `~/` e o texto digitado vira
+  `~/texto` (`toFilesQuery`); quem começa com `/` ou `~` é usado como está, então Tab completa
+  pastas. Enter numa pasta abre a pasta; num arquivo mostra o arquivo no gerenciador de
+  arquivos (`org.freedesktop.FileManager1.ShowItems`, com a pasta como plano B).
+- Blur: só o painel leva `clipboard-dialog`. As bolhas têm preenchimento próprio, porque o
+  Blur my Shell arredondaria com o raio dele e não com o círculo.
+- Enter também escuta o sinal `activate` da caixa, caso o método de entrada consuma a tecla
+  antes do `key-press-event`.

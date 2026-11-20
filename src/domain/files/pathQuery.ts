@@ -28,3 +28,6 @@ export const abbreviateHome = (path: string, home: string): string => {
   if (path.startsWith(`${home}/`)) return `~${path.slice(home.length)}`;
   return path;
 };
+
+export const toFilesQuery = (text: string): string =>
+  text.startsWith("/") || text.startsWith("~") ? text : `~/${text}`;

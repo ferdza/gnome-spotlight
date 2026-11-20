@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { AppGrid, filterApps, GridMove } from "@domain/launchpad/appGrid";
+import { AppGrid, filterApps, GridMove } from "@domain/apps/appGrid";
 
 import { makeApp } from "../support/fakes";
 
@@ -39,33 +39,35 @@ describe("filterApps", () => {
 describe("AppGrid", () => {
   const sorted = filterApps(apps, "");
   const makeGrid = () => {
-    const grid = new AppGrid({ columns: 3, rows: 2 });
+    const grid = new AppGrid(3);
     grid.setItems(sorted);
     return grid;
   };
 
-  test("pagina pelo tamanho da grade e seleciona o primeiro", () => {
-    const grid = makeGrid();
-
-    expect(grid.pageCount).toBe(2);
-    expect(grid.pageItems).toHaveLength(6);
-    expect(grid.selected?.name).toBe("Blender");
+  test("seleciona o primeiro app", () => {
+    expect(makeGrid().selected?.name).toBe("Blender");
   });
 
-  test("setas andam na grade e viram a página sozinhas", () => {
+  test("setas andam na grade", () => {
     const grid = makeGrid();
 
     grid.move(GridMove.DOWN);
     expect(grid.selected?.name).toBe("Files");
     grid.move(GridMove.RIGHT);
-    grid.move(GridMove.RIGHT);
-    expect(grid.selected?.name).toBe("Maps");
-    expect(grid.pageIndex).toBe(0);
-    grid.move(GridMove.RIGHT);
-    expect(grid.selected?.name).toBe("Zed");
-    expect(grid.pageIndex).toBe(1);
+    expect(grid.selected?.name).toBe("Firefox");
+    grid.move(GridMove.UP);
+    expect(grid.selected?.name).toBe("Calculator");
     grid.move(GridMove.LEFT);
-    expect(grid.pageIndex).toBe(0);
+    expect(grid.selected?.name).toBe("Blender");
+  });
+
+  test("descer de uma linha cheia para uma última linha curta cai no último app", () => {
+    const grid = makeGrid();
+    grid.select(4);
+
+    grid.move(GridMove.DOWN);
+
+    expect(grid.selected?.name).toBe("Zed");
   });
 
   test("não sai da lista", () => {
@@ -75,38 +77,18 @@ describe("AppGrid", () => {
     grid.move(GridMove.UP);
     expect(grid.selectedIndex).toBe(0);
     for (let i = 0; i < 10; i++) grid.move(GridMove.DOWN);
-    expect(grid.selectedIndex).toBeLessThan(sorted.length);
-  });
-
-  test("goToPage mantém a posição na página e respeita o fim", () => {
-    const grid = makeGrid();
-
+    grid.move(GridMove.DOWN);
+    expect(grid.selectedIndex).toBe(sorted.length - 1);
     grid.move(GridMove.RIGHT);
-    grid.goToPage(1);
-    expect(grid.selected?.name).toBe("Zed");
-    grid.goToPage(9);
-    expect(grid.pageIndex).toBe(1);
-    grid.goToPage(-3);
-    expect(grid.pageIndex).toBe(0);
+    expect(grid.selectedIndex).toBe(sorted.length - 1);
   });
 
   test("lista vazia não seleciona nada", () => {
-    const grid = new AppGrid({ columns: 3, rows: 2 });
+    const grid = new AppGrid(3);
     grid.setItems([]);
 
     expect(grid.selected).toBeUndefined();
-    expect(grid.pageCount).toBe(0);
     grid.move(GridMove.DOWN);
     expect(grid.selectedIndex).toBe(-1);
-  });
-
-  test("mudar o tamanho da grade mantém o app selecionado", () => {
-    const grid = makeGrid();
-    grid.selectById("Maps.desktop");
-
-    grid.setShape({ columns: 2, rows: 2 });
-
-    expect(grid.selected?.name).toBe("Maps");
-    expect(grid.pageIndex).toBe(1);
   });
 });

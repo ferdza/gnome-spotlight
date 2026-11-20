@@ -12,7 +12,7 @@ msgstr ""
 msgid "App"
 msgstr ""
 
-msgid "App grid shortcut"
+msgid "Applications"
 msgstr ""
 
 msgid "Browse files and folders"
@@ -43,6 +43,9 @@ msgid "Esc cancels. Backspace disables the shortcut."
 msgstr ""
 
 msgid "File"
+msgstr ""
+
+msgid "Files"
 msgstr ""
 
 msgid "Folder"
@@ -87,13 +90,13 @@ msgstr ""
 msgid "Search apps, windows, files or type a calculation"
 msgstr ""
 
-msgid "Search shortcut"
-msgstr ""
-
 msgid "Search the web"
 msgstr ""
 
 msgid "Search the web for “%s”"
+msgstr ""
+
+msgid "Shortcut"
 msgstr ""
 
 msgid "Switch to %s"

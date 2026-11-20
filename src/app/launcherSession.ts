@@ -21,7 +21,6 @@ import { createSearchProviders } from "@provider/searchProviderFactory";
 import { SearchService } from "@service/searchService";
 import { LauncherOverlay } from "@ui/launcherOverlay";
 import { LauncherPresenter } from "@ui/launcherPresenter";
-import { LaunchpadOverlay } from "@ui/launchpadOverlay";
 
 const describeError = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -32,14 +31,12 @@ export class LauncherSession {
   private readonly unitConverter = new GnomeCalculatorConverter();
   private readonly overviewProviders = new ShellOverviewProviderCatalog();
   private readonly overlay: LauncherOverlay;
-  private readonly launchpad: LaunchpadOverlay;
 
   constructor(
     private readonly settings: Gio.Settings,
     private readonly t: Translate,
   ) {
-    this.overlay = new LauncherOverlay(t);
-    this.launchpad = new LaunchpadOverlay(this.apps, t);
+    this.overlay = new LauncherOverlay(t, this.apps);
 
     const providers = createSearchProviders({
       apps: this.apps,
@@ -74,48 +71,31 @@ export class LauncherSession {
   }
 
   start(): void {
-    this.bindShortcut(SettingsKey.TOGGLE_LAUNCHER, () => this.toggleSearch());
-    this.bindShortcut(SettingsKey.TOGGLE_LAUNCHPAD, () => this.toggleLaunchpad());
+    Main.wm.addKeybinding(
+      SettingsKey.TOGGLE_LAUNCHER,
+      this.settings,
+      Meta.KeyBindingFlags.IGNORE_AUTOREPEAT,
+      Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW | Shell.ActionMode.SYSTEM_MODAL,
+      () => {
+        if (
+          !toggleShortcut(
+            (Main.actionMode as Shell.ActionMode) === Shell.ActionMode.SYSTEM_MODAL,
+            this.overlay.isOpen,
+          )
+        )
+          return;
+        this.overlay.toggle();
+      },
+    );
   }
 
   stop(): void {
     Main.wm.removeKeybinding(SettingsKey.TOGGLE_LAUNCHER);
-    Main.wm.removeKeybinding(SettingsKey.TOGGLE_LAUNCHPAD);
     this.overlay.destroy();
-    this.launchpad.destroy();
     this.apps.destroy();
     this.webResults.destroy();
     this.unitConverter.destroy();
     this.overviewProviders.destroy();
-  }
-
-  private bindShortcut(key: string, handler: () => void): void {
-    Main.wm.addKeybinding(
-      key,
-      this.settings,
-      Meta.KeyBindingFlags.IGNORE_AUTOREPEAT,
-      Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW | Shell.ActionMode.SYSTEM_MODAL,
-      handler,
-    );
-  }
-
-  private canToggle(isOpen: boolean): boolean {
-    const isSystemModal = (Main.actionMode as Shell.ActionMode) === Shell.ActionMode.SYSTEM_MODAL;
-    return toggleShortcut(isSystemModal, isOpen);
-  }
-
-  private toggleSearch(): void {
-    if (this.launchpad.isOpen) this.launchpad.close();
-    else if (!this.canToggle(this.overlay.isOpen)) return;
-
-    this.overlay.toggle();
-  }
-
-  private toggleLaunchpad(): void {
-    if (this.overlay.isOpen) this.overlay.close();
-    else if (!this.canToggle(this.launchpad.isOpen)) return;
-
-    this.launchpad.toggle();
   }
 
   private notifyError(error: unknown): void {

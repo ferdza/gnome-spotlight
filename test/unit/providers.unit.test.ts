@@ -318,14 +318,28 @@ describe("FileSearchProvider", () => {
     expect(hidden.map((r) => r.title)).toEqual([".config"]);
   });
 
-  test("ativar abre o caminho completo", async () => {
-    const { launcher, paths } = makeLauncher();
+  test("ativar um arquivo mostra ele no gerenciador de arquivos", async () => {
+    const { launcher, paths, revealed } = makeLauncher();
     const provider = new FileSearchProvider(makeDirectoryReader(tree).reader, launcher, HOME);
 
     const [result] = await provider.search(parseQuery("~/doc.t"));
     await result?.activate();
 
-    expect(paths).toEqual(["/home/maria/doc.txt"]);
+    expect(revealed).toEqual(["/home/maria/doc.txt"]);
+    expect(paths).toEqual([]);
+  });
+
+  test("ativar uma pasta abre a pasta", async () => {
+    const { launcher, paths, revealed } = makeLauncher();
+    const provider = new FileSearchProvider(makeDirectoryReader(tree).reader, launcher, HOME);
+
+    const [result] = await provider.search(parseQuery("~/"));
+    const folder = (await provider.search(parseQuery("~/"))).find((r) => r.kind === "folder");
+    await folder?.activate();
+
+    expect(result).toBeDefined();
+    expect(paths).toHaveLength(1);
+    expect(revealed).toEqual([]);
   });
 
   test("pasta inexistente não quebra a busca", async () => {

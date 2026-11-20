@@ -5,10 +5,6 @@
       <default><![CDATA[['<Super><Alt>space']]]></default>
       <summary>Shortcut that opens the search</summary>
     </key>
-    <key name="toggle-launchpad" type="as">
-      <default><![CDATA[['<Super><Alt>l']]]></default>
-      <summary>Shortcut that opens the app grid</summary>
-    </key>
     <key name="web-search-url" type="s">
       <default>'https://www.google.com/search?q=%s'</default>
       <summary>Web search address, %s is replaced by the searched text</summary>

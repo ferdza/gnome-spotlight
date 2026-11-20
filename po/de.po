@@ -80,11 +80,8 @@ msgstr "Das Web durchsuchen"
 msgid "Search the web for “%s”"
 msgstr "„%s“ im Internet suchen"
 
-msgid "Search shortcut"
-msgstr "Tastenkombination für die Suche"
-
-msgid "App grid shortcut"
-msgstr "Tastenkombination für das App-Raster"
+msgid "Shortcut"
+msgstr "Tastenkombination"
 
 msgid "Switch to %s"
 msgstr "Zu „%s“ wechseln"
@@ -127,3 +124,9 @@ msgstr "Auf %s suchen: „%s“"
 
 msgid "Type the keyword before the text, for example: @y cats"
 msgstr "Kürzel vor den Text schreiben, zum Beispiel: @y Katzen"
+
+msgid "Applications"
+msgstr "Anwendungen"
+
+msgid "Files"
+msgstr "Dateien"

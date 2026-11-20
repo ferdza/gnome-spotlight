@@ -78,7 +78,7 @@ Developer Edition".
 - `~` sozinho lista o home. Barra no fim lista a pasta inteira.
 - Arquivo escondido só aparece se o trecho digitado começar com ponto.
 - Lê no máximo 500 itens da pasta, de forma assíncrona.
-- Tab completa com o caminho (pasta ganha a barra final), Enter abre no app padrão.
+- Tab completa com o caminho (pasta ganha a barra final), Enter numa pasta abre a pasta e, num arquivo, mostra o arquivo no gerenciador de arquivos.
 
 ## Captura do atalho nas preferências
 
