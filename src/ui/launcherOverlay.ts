@@ -184,6 +184,7 @@ export class LauncherOverlay implements LauncherView {
       hscrollbar_policy: St.PolicyType.NEVER,
       vscrollbar_policy: St.PolicyType.AUTOMATIC,
       overlay_scrollbars: true,
+      clip_to_allocation: true,
       child: this.resultsBox,
       visible: false,
     });
@@ -198,6 +199,7 @@ export class LauncherOverlay implements LauncherView {
       hscrollbar_policy: St.PolicyType.NEVER,
       vscrollbar_policy: St.PolicyType.AUTOMATIC,
       overlay_scrollbars: true,
+      clip_to_allocation: true,
       child: this.appBox,
       visible: false,
     });
