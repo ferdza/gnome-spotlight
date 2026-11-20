@@ -54,3 +54,15 @@ Super+Espaço continua sendo "trocar fonte de entrada".
 - Ações do sistema usam o `misc/systemActions.js` do Shell. Ele já sabe o que está
   disponível agora e casa as palavras-chave traduzidas, então a extensão não mantém lista
   própria.
+
+## Launchpad (grade de apps)
+
+- `domain/launchpad/appGrid.ts` é o modelo puro: filtra e ordena os apps (mesmo `textMatcher`
+  da busca), pagina e move a seleção na grade. `ui/launchpadOverlay.ts` só desenha e traduz
+  evento (setas, Page Up/Down, roda do mouse, Enter, Esc, clique no fundo e nas bolinhas).
+- Atalho próprio (`toggle-launchpad`, padrão Super+Alt+L). Abrir um fecha o outro, os dois usam
+  `pushModal`.
+- Tamanho da grade vem do monitor do ponteiro (`computeShape`); a seleção sobrevive à mudança.
+- Blur: o fundo leva `clipboard-dialog`, como o painel da busca. Sem o Blur my Shell fica um
+  fundo sólido (`resolvePanelSurface`). Ainda não conferido num Shell real: se o Blur my Shell
+  arredondar os cantos da tela inteira, o ajuste é no raio ou no ator que recebe a classe.

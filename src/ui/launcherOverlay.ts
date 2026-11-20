@@ -5,13 +5,13 @@ import { ensureActorVisibleInScrollView } from "resource:///org/gnome/shell/misc
 import { MonitorConstraint } from "resource:///org/gnome/shell/ui/layout.js";
 import * as Main from "resource:///org/gnome/shell/ui/main.js";
 
-import { PanelSurface, resolvePanelSurface } from "@domain/appearance/panelSurface";
+import { PanelSurface } from "@domain/appearance/panelSurface";
 import { getResultLabel } from "@domain/search/resultKindLabel";
 import type { SearchResult } from "@domain/search/searchResult";
 import type { Translate } from "@i18n/translate";
-import { hasBlurMyShell } from "@infra/gnome/blurProvider";
 import type { LauncherPresenter, LauncherView } from "@ui/launcherPresenter";
 import { ResultRow } from "@ui/resultRow";
+import { applySurface, BLUR_TARGET_CLASS, ENTRY_INLINE_STYLE } from "@ui/surface";
 
 export type LauncherListener = Pick<
   LauncherPresenter,
@@ -25,9 +25,10 @@ export type LauncherListener = Pick<
 >;
 
 const TOP_OFFSET_RATIO = 0.25;
-const OPEN_ANIMATION_MS = 140;
-const BLUR_TARGET_CLASS = "clipboard-dialog";
-const ENTRY_INLINE_STYLE = "background-color: transparent; box-shadow: none; border: none;";
+const OPEN_ANIMATION_MS = 220;
+const FADE_ANIMATION_MS = 130;
+const OPEN_START_SCALE = 0.9;
+const RESULTS_SLIDE_PX = 8;
 
 const PANEL_SURFACE_CLASSES: Record<PanelSurface, string> = {
   [PanelSurface.GLASS]: "launcher-panel-glass",
@@ -173,8 +174,10 @@ export class LauncherOverlay implements LauncherView {
     this.rows.forEach((row) => this.resultsBox.add_child(row.actor));
 
     const hasResults = results.length > 0;
+    const revealing = hasResults && !this.scrollView.visible;
     this.separator.visible = hasResults;
     this.scrollView.visible = hasResults;
+    if (revealing) this.animateResultsIn();
     this.renderSelection(selectedIndex);
   }
 
@@ -220,12 +223,7 @@ export class LauncherOverlay implements LauncherView {
   }
 
   private applyPanelSurface(): void {
-    Object.values(PANEL_SURFACE_CLASSES).forEach((name) =>
-      this.panel.remove_style_class_name(name),
-    );
-    this.panel.add_style_class_name(
-      PANEL_SURFACE_CLASSES[resolvePanelSurface({ hasBlurProvider: hasBlurMyShell() })],
-    );
+    applySurface(this.panel, PANEL_SURFACE_CLASSES);
   }
 
   private placeOnCurrentMonitor(): void {
@@ -237,13 +235,29 @@ export class LauncherOverlay implements LauncherView {
   }
 
   private animateIn(): void {
-    this.panel.set_pivot_point(0.5, 0);
-    this.panel.set({ opacity: 0, scaleX: 0.97, scaleY: 0.97 });
+    this.panel.remove_all_transitions();
+    this.panel.set_pivot_point(0.5, 0.2);
+    this.panel.set({ opacity: 0, scaleX: OPEN_START_SCALE, scaleY: OPEN_START_SCALE });
     this.panel.ease({
-      opacity: 255,
       scaleX: 1,
       scaleY: 1,
       duration: OPEN_ANIMATION_MS,
+      mode: Clutter.AnimationMode.EASE_OUT_BACK,
+    });
+    this.panel.ease({
+      opacity: 255,
+      duration: FADE_ANIMATION_MS,
+      mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+    });
+  }
+
+  private animateResultsIn(): void {
+    this.scrollView.remove_all_transitions();
+    this.scrollView.set({ opacity: 0, translationY: -RESULTS_SLIDE_PX });
+    this.scrollView.ease({
+      opacity: 255,
+      translationY: 0,
+      duration: FADE_ANIMATION_MS,
       mode: Clutter.AnimationMode.EASE_OUT_QUAD,
     });
   }

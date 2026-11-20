@@ -13,6 +13,10 @@ interface ThemeTokens {
   readonly hoverBackground: string;
   readonly separator: string;
   readonly iconTile: string;
+  readonly padGlass: string;
+  readonly padSolid: string;
+  readonly padField: string;
+  readonly tileSelected: string;
 }
 
 const THEME_TOKENS: Record<ThemeVariant, ThemeTokens> = {
@@ -25,6 +29,10 @@ const THEME_TOKENS: Record<ThemeVariant, ThemeTokens> = {
     hoverBackground: "rgba(255, 255, 255, 0.08)",
     separator: "rgba(255, 255, 255, 0.1)",
     iconTile: "rgba(255, 255, 255, 0.1)",
+    padGlass: "rgba(18, 18, 22, 0.35)",
+    padSolid: "rgba(24, 24, 28, 0.94)",
+    padField: "rgba(255, 255, 255, 0.12)",
+    tileSelected: "rgba(255, 255, 255, 0.18)",
   },
   [ThemeVariant.LIGHT]: {
     panelGlass: "rgba(250, 250, 252, 0.6)",
@@ -35,6 +43,10 @@ const THEME_TOKENS: Record<ThemeVariant, ThemeTokens> = {
     hoverBackground: "rgba(0, 0, 0, 0.06)",
     separator: "rgba(0, 0, 0, 0.08)",
     iconTile: "rgba(0, 0, 0, 0.06)",
+    padGlass: "rgba(245, 245, 248, 0.4)",
+    padSolid: "rgba(245, 245, 248, 0.96)",
+    padField: "rgba(0, 0, 0, 0.07)",
+    tileSelected: "rgba(0, 0, 0, 0.12)",
   },
 };
 
@@ -57,7 +69,7 @@ const TEMPLATE = `
 
 .launcher-entry {
   padding: 10px 12px;
-  font-size: 1.3em;
+  font-size: 1.45em;
   color: {{text}};
   caret-color: {{text}};
   selection-background-color: -st-accent-color;
@@ -134,6 +146,86 @@ const TEMPLATE = `
 
 .launcher-result:selected .launcher-result-kind {
   color: -st-accent-fg-color;
+}
+
+.launcher-pad-glass {
+  background-color: {{padGlass}};
+}
+
+.launcher-pad-solid {
+  background-color: {{padSolid}};
+}
+
+.launcher-pad-content {
+  padding: 56px 0 40px;
+  spacing: 36px;
+}
+
+.launcher-pad-field {
+  width: 320px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  color: {{text}};
+  background-color: {{padField}};
+  border: 1px solid {{panelBorder}};
+}
+
+.launcher-pad-entry {
+  padding: 4px 0;
+  color: {{text}};
+  caret-color: {{text}};
+  selection-background-color: -st-accent-color;
+  selected-color: -st-accent-fg-color;
+}
+
+.launcher-pad-page {
+  spacing: 8px;
+}
+
+.launcher-pad-row {
+  spacing: 0;
+}
+
+.launcher-tile {
+  width: 138px;
+  height: 128px;
+  padding: 10px 6px;
+  border-radius: 20px;
+  color: {{text}};
+  background-color: transparent;
+}
+
+.launcher-tile:hover {
+  background-color: {{hoverBackground}};
+}
+
+.launcher-tile:selected {
+  background-color: {{tileSelected}};
+}
+
+.launcher-tile-icon {
+  icon-size: 72px;
+  padding-bottom: 8px;
+}
+
+.launcher-tile-label {
+  font-size: 0.95em;
+  color: {{text}};
+}
+
+.launcher-page-dots {
+  spacing: 12px;
+}
+
+.launcher-page-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background-color: {{dimText}};
+}
+
+.launcher-page-dot:active {
+  background-color: {{text}};
 }
 `;
 

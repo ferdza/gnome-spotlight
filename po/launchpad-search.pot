@@ -12,6 +12,9 @@ msgstr ""
 msgid "App"
 msgstr ""
 
+msgid "App grid shortcut"
+msgstr ""
+
 msgid "Browse files and folders"
 msgstr ""
 
@@ -84,13 +87,13 @@ msgstr ""
 msgid "Search apps, windows, files or type a calculation"
 msgstr ""
 
+msgid "Search shortcut"
+msgstr ""
+
 msgid "Search the web"
 msgstr ""
 
 msgid "Search the web for “%s”"
-msgstr ""
-
-msgid "Shortcut"
 msgstr ""
 
 msgid "Switch to %s"

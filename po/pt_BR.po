@@ -77,8 +77,11 @@ msgstr "Pesquisar na web"
 msgid "Search the web for “%s”"
 msgstr "Pesquisar “%s” na web"
 
-msgid "Shortcut"
-msgstr "Atalho"
+msgid "Search shortcut"
+msgstr "Atalho da busca"
+
+msgid "App grid shortcut"
+msgstr "Atalho da grade de apps"
 
 msgid "Switch to %s"
 msgstr "Ir para %s"
