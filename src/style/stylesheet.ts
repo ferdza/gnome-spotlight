@@ -15,9 +15,6 @@ interface ThemeTokens {
   readonly iconTile: string;
   readonly tileSelected: string;
   readonly bubbleFill: string;
-  readonly panelShadow: string;
-  readonly rimHighlight: string;
-  readonly rimBorder: string;
 }
 
 const THEME_TOKENS: Record<ThemeVariant, ThemeTokens> = {
@@ -32,9 +29,6 @@ const THEME_TOKENS: Record<ThemeVariant, ThemeTokens> = {
     iconTile: "rgba(255, 255, 255, 0.1)",
     tileSelected: "rgba(255, 255, 255, 0.18)",
     bubbleFill: "rgba(44, 44, 50, 0.72)",
-    panelShadow: "0 18px 44px rgba(0, 0, 0, 0.38)",
-    rimHighlight: "inset 0 1px 0 rgba(255, 255, 255, 0.32)",
-    rimBorder: "rgba(255, 255, 255, 0.16)",
   },
   [ThemeVariant.LIGHT]: {
     panelGlass: "rgba(250, 250, 252, 0.6)",
@@ -47,9 +41,6 @@ const THEME_TOKENS: Record<ThemeVariant, ThemeTokens> = {
     iconTile: "rgba(0, 0, 0, 0.06)",
     tileSelected: "rgba(0, 0, 0, 0.12)",
     bubbleFill: "rgba(250, 250, 252, 0.78)",
-    panelShadow: "0 18px 44px rgba(0, 0, 0, 0.2)",
-    rimHighlight: "inset 0 1px 0 rgba(255, 255, 255, 0.9)",
-    rimBorder: "rgba(255, 255, 255, 0.7)",
   },
 };
 
@@ -59,8 +50,7 @@ const TEMPLATE = `
   padding: 8px;
   border-radius: 18px;
   color: {{text}};
-  border: 1px solid {{rimBorder}};
-  box-shadow: {{panelShadow}};
+  border: 1px solid {{panelBorder}};
 }
 
 .launcher-panel-glass {
@@ -199,8 +189,7 @@ const TEMPLATE = `
   border-radius: 26px;
   color: {{text}};
   background-color: {{bubbleFill}};
-  border: 1px solid {{rimBorder}};
-  box-shadow: {{rimHighlight}};
+  border: 1px solid {{panelBorder}};
 }
 
 .launcher-bubble:hover {

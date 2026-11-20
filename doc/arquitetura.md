@@ -91,5 +91,5 @@ Super+Espaço continua sendo "trocar fonte de entrada".
 - `ui/overscrollBounce.ts`: St.ScrollView não tem elástico. Passando do começo ou do fim, o
   conteúdo é puxado com resistência (`1 - |d|/64`) e volta com mola 90 ms depois do último
   evento de rolagem.
-- O brilho de vidro é CSS: sombra externa, borda clara e reflexo interno nas bolhas. Refração de
-  verdade não existe no Shell, então não é simulada.
+- O aspecto de vidro (blur, refração, brilho) é do Blur my Shell. A extensão não desenha
+  sombra nem reflexo próprios para não brigar com ele.
