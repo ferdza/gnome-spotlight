@@ -59,8 +59,10 @@ Super+Espaço continua sendo "trocar fonte de entrada".
 
 - Um atalho só. Ao lado do painel ficam duas bolhas redondas (Apps e Arquivos) que saem de
   trás da barra, escalonadas, depois de 650 ms ou no primeiro movimento do mouse
-  (`revealBubbles`). Ctrl+1 e Ctrl+2 fazem o mesmo pelo teclado; clicar na bolha ativa de novo,
-  ou Esc com a caixa vazia, volta à busca normal.
+  (`revealBubbles`). Ctrl+1 e Ctrl+2 fazem o mesmo pelo teclado.
+- Ao entrar num modo as bolhas voltam para dentro da barra (`collapseBubbles`) e a barra
+  desliza para o centro: sem bolhas não há assimetria. Backspace com a caixa vazia (ou Esc, ou
+  Ctrl+1/2 de novo) volta à busca normal e as bolhas saem de novo.
 - Modo Apps: `domain/apps/appGrid.ts` é o modelo puro (filtro com o mesmo `textMatcher`, ordem
   alfabética, movimento nas setas). A view desenha uma grade de 5 colunas com TODOS os apps,
   sem categorias, dentro do próprio painel; digitar filtra.
@@ -72,3 +74,22 @@ Super+Espaço continua sendo "trocar fonte de entrada".
   Blur my Shell arredondaria com o raio dele e não com o círculo.
 - Enter também escuta o sinal `activate` da caixa, caso o método de entrada consuma a tecla
   antes do `key-press-event`.
+
+## Animações
+
+- `domain/animation/spring.ts` é a mola amortecida que a Apple usa no SwiftUI: `response` é o
+  período (ω0 = 2π/response) e `damping` é a razão de amortecimento ζ (1 sem passar do alvo,
+  menor que 1 passa e volta). A posição é `1 - e^(-ζω0t)(cos ωd·t + ζω0/ωd · sen ωd·t)`, com
+  ωd = ω0·√(1-ζ²). O tempo de assentamento sai do envelope `e^(-ζω0t)` até 0,2%.
+- `ui/motion.ts` (`springTo`) roda a mola num `Clutter.Timeline` e escreve opacidade, escala,
+  translação e altura. Cada propriedade tem um dono: uma animação nova da mesma propriedade
+  assume do valor atual, sem salto.
+- Presets: SMOOTH (sem passar), SNAPPY (leve), DEFAULT (0,55 s, 0,825, o padrão do SwiftUI) e
+  BOUNCY. A abertura e as bolhas usam BOUNCY, a altura das listas usa DEFAULT.
+- A altura das listas anima do tamanho atual ao novo (`animateHeight`), a lista de apps entra
+  com os ícones em escada e o toque numa bolha ou ícone encolhe e solta com mola.
+- `ui/overscrollBounce.ts`: St.ScrollView não tem elástico. Passando do começo ou do fim, o
+  conteúdo é puxado com resistência (`1 - |d|/64`) e volta com mola 90 ms depois do último
+  evento de rolagem.
+- O brilho de vidro é CSS: sombra externa, borda clara e reflexo interno nas bolhas. Refração de
+  verdade não existe no Shell, então não é simulada.

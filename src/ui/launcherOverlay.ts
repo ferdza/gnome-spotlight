@@ -7,6 +7,12 @@ import { ensureActorVisibleInScrollView } from "resource:///org/gnome/shell/misc
 import { MonitorConstraint } from "resource:///org/gnome/shell/ui/layout.js";
 import * as Main from "resource:///org/gnome/shell/ui/main.js";
 
+import {
+  SPRING_BOUNCY,
+  SPRING_DEFAULT,
+  SPRING_SMOOTH,
+  SPRING_SNAPPY,
+} from "@domain/animation/spring";
 import { PanelSurface } from "@domain/appearance/panelSurface";
 import { AppGrid, filterApps, GridMove } from "@domain/apps/appGrid";
 import type { AppCatalog, AppEntry } from "@domain/apps/appPorts";
@@ -15,6 +21,8 @@ import { getResultLabel } from "@domain/search/resultKindLabel";
 import type { SearchResult } from "@domain/search/searchResult";
 import type { Translate } from "@i18n/translate";
 import type { LauncherPresenter, LauncherView } from "@ui/launcherPresenter";
+import { springTo, stopMotion } from "@ui/motion";
+import { OverscrollBounce } from "@ui/overscrollBounce";
 import { ResultRow } from "@ui/resultRow";
 import { toIconProps } from "@ui/searchIconProps";
 import { applySurface, BLUR_TARGET_CLASS, ENTRY_INLINE_STYLE } from "@ui/surface";
@@ -61,15 +69,33 @@ const BUBBLES: readonly BubbleSpec[] = [
 const SEARCH_ICON = "edit-find-symbolic";
 const APP_COLUMNS = 5;
 const TOP_OFFSET_RATIO = 0.25;
-const OPEN_ANIMATION_MS = 220;
-const FADE_ANIMATION_MS = 130;
 const OPEN_START_SCALE = 0.9;
-const RESULTS_SLIDE_PX = 8;
+const OPEN_RISE_PX = 14;
+const CLOSE_END_SCALE = 0.965;
+const CLOSE_MS = 130;
+const FADE_MS = 160;
+const RESULTS_SLIDE_PX = 10;
+const MIN_HEIGHT_CHANGE_PX = 4;
 const REVEAL_DELAY_MS = 650;
-const BUBBLE_ANIMATION_MS = 360;
-const BUBBLE_STAGGER_MS = 70;
-const BUBBLE_START_SCALE = 0.3;
-const BUBBLE_TRAVEL_PX = 56;
+const BUBBLE_SIZE = 52;
+const BUBBLE_GAP = 10;
+const BUBBLE_MARGIN = 12;
+const BUBBLE_OVERLAP = 30;
+const BUBBLE_STAGGER_MS = 60;
+const BUBBLE_START_SCALE = 0.35;
+const BUBBLE_HOVER_SCALE = 1.08;
+const COLLAPSE_MS = 150;
+const PRESS_SCALE = 0.93;
+const SELECTED_TILE_SCALE = 1.05;
+const TILE_START_SCALE = 0.82;
+const TILE_STAGGER_MS = 14;
+const TILE_STAGGER_LIMIT = 25;
+
+const bubbleEmergeOffset = (index: number): number =>
+  BUBBLE_MARGIN + index * (BUBBLE_SIZE + BUBBLE_GAP) + BUBBLE_OVERLAP;
+
+const bubbleStripWidth = (count: number): number =>
+  BUBBLE_MARGIN + count * BUBBLE_SIZE + (count - 1) * BUBBLE_GAP;
 
 const PANEL_SURFACE_CLASSES: Record<PanelSurface, string> = {
   [PanelSurface.GLASS]: "launcher-panel-glass",
@@ -126,6 +152,9 @@ export class LauncherOverlay implements LauncherView {
   private mode: BrowseMode | null = null;
   private bubblesShown = false;
   private revealSource = 0;
+  private collapseSource = 0;
+  private quiet = false;
+  private readonly overscrolls: OverscrollBounce[] = [];
   private grab: Clutter.Grab | null = null;
   private listener: LauncherListener | null = null;
 
@@ -205,6 +234,10 @@ export class LauncherOverlay implements LauncherView {
       }),
     );
 
+    this.overscrolls.push(
+      new OverscrollBounce(this.scrollView, this.resultsBox),
+      new OverscrollBounce(this.appScroll, this.appBox),
+    );
     this.hideBubbles();
     this.connectSignals();
   }
@@ -230,13 +263,16 @@ export class LauncherOverlay implements LauncherView {
     if (this.isOpen) return;
     if (Main.overview.visible) Main.overview.hide();
 
+    this.backdrop.remove_all_transitions();
+    this.backdrop.get_parent()?.remove_child(this.backdrop);
+    this.backdrop.opacity = 255;
+
     this.placeOnCurrentMonitor();
     this.applyPanelSurface();
     Main.layoutManager.modalDialogGroup.add_child(this.backdrop);
 
     this.grab = Main.pushModal(this.backdrop, { actionMode: Shell.ActionMode.SYSTEM_MODAL });
-    this.setMode(null);
-    this.entry.set_text("");
+    this.resetView();
     this.listener?.reset();
     this.entry.grab_key_focus();
     this.animateIn();
@@ -246,22 +282,28 @@ export class LauncherOverlay implements LauncherView {
   close(): void {
     if (!this.grab) return;
 
-    this.cancelReveal();
+    this.cancelTimers();
     Main.popModal(this.grab);
     this.grab = null;
-    this.backdrop.get_parent()?.remove_child(this.backdrop);
+    this.animateOut();
   }
 
   destroy(): void {
     this.listener?.reset();
     this.listener = null;
-    this.close();
+    this.cancelTimers();
+    if (this.grab) {
+      Main.popModal(this.grab);
+      this.grab = null;
+    }
+    this.overscrolls.forEach((overscroll) => overscroll.dispose());
     this.backdrop.destroy();
   }
 
   renderResults(results: readonly SearchResult[], selectedIndex: number): void {
     if (this.mode === BrowseMode.APPS) return;
 
+    const previousHeight = this.scrollView.visible ? this.scrollView.get_height() : 0;
     this.resultsBox.destroy_all_children();
     this.rows = results.map(
       (result, index) =>
@@ -278,6 +320,7 @@ export class LauncherOverlay implements LauncherView {
     this.separator.visible = hasResults;
     this.scrollView.visible = hasResults;
     if (revealing) this.animateResultsIn();
+    if (hasResults) this.animateHeight(this.scrollView, previousHeight);
     this.renderSelection(selectedIndex);
   }
 
@@ -306,6 +349,13 @@ export class LauncherOverlay implements LauncherView {
     });
     bubble.set_pivot_point(0.5, 0.5);
     bubble.connect("clicked", () => this.toggleMode(spec.mode));
+    const settle = (): void => {
+      if (!bubble.reactive) return;
+      const scale = bubble.pressed ? PRESS_SCALE : bubble.hover ? BUBBLE_HOVER_SCALE : 1;
+      springTo(bubble, { scale_x: scale, scale_y: scale }, { spring: SPRING_SNAPPY });
+    };
+    bubble.connect("notify::pressed", settle);
+    bubble.connect("notify::hover", settle);
     this.bubbles.set(spec.mode, bubble);
     return bubble;
   }
@@ -326,6 +376,8 @@ export class LauncherOverlay implements LauncherView {
   }
 
   private onTextChanged(): void {
+    if (this.quiet) return;
+
     const text = this.entry.get_text();
     if (this.mode === BrowseMode.APPS) this.renderApps(text);
     else if (this.mode === BrowseMode.FILES) void this.listener?.onQueryChanged(toFilesQuery(text));
@@ -343,6 +395,11 @@ export class LauncherOverlay implements LauncherView {
     if (this.onModeShortcut(event, symbol)) return Clutter.EVENT_STOP;
     if (symbol === Clutter.KEY_Escape) {
       this.onEscape();
+      return Clutter.EVENT_STOP;
+    }
+
+    if (symbol === Clutter.KEY_BackSpace && this.mode && !this.entry.get_text()) {
+      this.leaveMode();
       return Clutter.EVENT_STOP;
     }
 
@@ -385,7 +442,7 @@ export class LauncherOverlay implements LauncherView {
   private onEscape(): void {
     const text = this.entry.get_text();
     if (this.mode && !text) {
-      this.setMode(null);
+      this.leaveMode();
       return;
     }
 
@@ -407,36 +464,87 @@ export class LauncherOverlay implements LauncherView {
   }
 
   private toggleMode(mode: BrowseMode): void {
-    this.setMode(this.mode === mode ? null : mode);
+    if (this.mode === mode) this.leaveMode();
+    else this.enterMode(mode);
   }
 
-  private setMode(mode: BrowseMode | null): void {
+  private applyMode(mode: BrowseMode | null): void {
     this.mode = mode;
     this.bubbles.forEach((bubble, key) => (bubble.checked = key === mode));
 
     const spec = BUBBLES.find((bubble) => bubble.mode === mode);
     this.entry.hint_text = spec ? spec.label(this.t) : this.defaultHint();
     this.entryIcon.icon_name = spec ? spec.icon : SEARCH_ICON;
+    this.setTextSilently("");
+  }
 
-    const showsApps = mode === BrowseMode.APPS;
-    this.appScroll.visible = showsApps;
-    if (showsApps) {
-      this.listener?.reset();
-      this.scrollView.visible = false;
-      this.separator.visible = true;
-      this.entry.set_text("");
-      this.renderApps("");
+  private setTextSilently(text: string): void {
+    this.quiet = true;
+    this.entry.set_text(text);
+    this.quiet = false;
+  }
+
+  private resetView(): void {
+    this.applyMode(null);
+    this.appScroll.visible = false;
+    this.appScroll.set_height(-1);
+    this.scrollView.visible = false;
+    this.scrollView.set_height(-1);
+    this.separator.visible = false;
+    this.hideBubbles();
+  }
+
+  private enterMode(mode: BrowseMode): void {
+    this.applyMode(mode);
+    this.collapseBubbles();
+
+    if (mode === BrowseMode.APPS) {
+      this.showApps();
       return;
     }
 
-    this.entry.set_text("");
-    this.appBox.destroy_all_children();
-    this.tiles = [];
-    if (mode === BrowseMode.FILES) void this.listener?.onQueryChanged(toFilesQuery(""));
-    else this.listener?.reset();
+    this.hideApps();
+    void this.listener?.onQueryChanged(toFilesQuery(""));
   }
 
-  private renderApps(query: string): void {
+  private leaveMode(): void {
+    this.applyMode(null);
+    this.hideApps();
+    this.listener?.reset();
+    this.revealBubbles();
+  }
+
+  private showApps(): void {
+    const previousHeight = this.scrollView.visible ? this.scrollView.get_height() : 0;
+    this.listener?.reset();
+    this.scrollView.visible = false;
+    this.separator.visible = true;
+    this.appScroll.visible = true;
+    this.renderApps("", true);
+    this.animateHeight(this.appScroll, previousHeight);
+  }
+
+  private hideApps(): void {
+    if (!this.appScroll.visible) return;
+
+    springTo(
+      this.appScroll,
+      { height: 0 },
+      {
+        spring: SPRING_SMOOTH,
+        onComplete: () => {
+          if (this.mode === BrowseMode.APPS) return;
+          this.appScroll.visible = false;
+          this.appScroll.set_height(-1);
+          this.appBox.destroy_all_children();
+          this.tiles = [];
+        },
+      },
+    );
+  }
+
+  private renderApps(query: string, entrance = false): void {
+    const previousHeight = this.appScroll.get_height();
     this.appGrid.setItems(filterApps(this.apps.list(), query));
     this.appBox.destroy_all_children();
     this.tiles = [];
@@ -453,6 +561,28 @@ export class LauncherOverlay implements LauncherView {
     }
 
     this.renderAppSelection();
+    if (entrance) this.animateTilesIn();
+    else this.animateHeight(this.appScroll, previousHeight);
+  }
+
+  private animateTilesIn(): void {
+    this.tiles.slice(0, TILE_STAGGER_LIMIT).forEach((tile, index) => {
+      const rest = this.restScale(tile);
+      stopMotion(tile);
+      tile.set({ opacity: 0, scale_x: TILE_START_SCALE, scale_y: TILE_START_SCALE });
+      const delay = index * TILE_STAGGER_MS;
+      springTo(tile, { scale_x: rest, scale_y: rest }, { spring: SPRING_BOUNCY, delay });
+      tile.ease({
+        opacity: 255,
+        duration: FADE_MS,
+        delay,
+        mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+      });
+    });
+  }
+
+  private restScale(tile: St.Button): number {
+    return tile.has_style_pseudo_class("selected") ? SELECTED_TILE_SCALE : 1;
   }
 
   private createTile(app: AppEntry): St.Button {
@@ -482,14 +612,25 @@ export class LauncherOverlay implements LauncherView {
       can_focus: false,
       accessible_name: app.name,
     });
+    tile.set_pivot_point(0.5, 0.5);
     tile.connect("clicked", () => this.launchApp(app));
+    tile.connect("notify::pressed", () => {
+      const scale = tile.pressed ? PRESS_SCALE : this.restScale(tile);
+      springTo(tile, { scale_x: scale, scale_y: scale }, { spring: SPRING_SNAPPY });
+    });
     return tile;
   }
 
   private renderAppSelection(): void {
     this.tiles.forEach((tile, index) => {
-      if (index === this.appGrid.selectedIndex) tile.add_style_pseudo_class("selected");
+      const wasSelected = tile.has_style_pseudo_class("selected");
+      const isSelected = index === this.appGrid.selectedIndex;
+      if (wasSelected === isSelected) return;
+
+      if (isSelected) tile.add_style_pseudo_class("selected");
       else tile.remove_style_pseudo_class("selected");
+      const scale = this.restScale(tile);
+      springTo(tile, { scale_x: scale, scale_y: scale }, { spring: SPRING_SNAPPY });
     });
 
     const selected = this.tiles[this.appGrid.selectedIndex];
@@ -527,68 +668,158 @@ export class LauncherOverlay implements LauncherView {
   private cancelReveal(): void {
     if (this.revealSource) GLib.source_remove(this.revealSource);
     this.revealSource = 0;
-    this.hideBubbles();
+  }
+
+  private cancelTimers(): void {
+    this.cancelReveal();
+    if (this.collapseSource) GLib.source_remove(this.collapseSource);
+    this.collapseSource = 0;
   }
 
   private revealBubbles(): void {
-    if (this.bubblesShown) return;
+    if (this.bubblesShown || this.mode) return;
 
     this.bubblesShown = true;
-    if (this.revealSource) GLib.source_remove(this.revealSource);
-    this.revealSource = 0;
+    this.cancelTimers();
+
+    this.bubbleBox.visible = true;
+    stopMotion(this.row);
+    this.row.translation_x = bubbleStripWidth(BUBBLES.length) / 2;
+    springTo(this.row, { translation_x: 0 }, { spring: SPRING_DEFAULT });
 
     [...this.bubbles.values()].forEach((bubble, index) => {
-      bubble.reactive = true;
+      const delay = index * BUBBLE_STAGGER_MS;
+      stopMotion(bubble);
+      bubble.set({
+        reactive: true,
+        opacity: 0,
+        scale_x: BUBBLE_START_SCALE,
+        scale_y: BUBBLE_START_SCALE,
+        translation_x: -bubbleEmergeOffset(index),
+      });
+      springTo(
+        bubble,
+        { scale_x: 1, scale_y: 1, translation_x: 0 },
+        { spring: SPRING_BOUNCY, delay },
+      );
       bubble.ease({
         opacity: 255,
-        scaleX: 1,
-        scaleY: 1,
-        translationX: 0,
-        delay: index * BUBBLE_STAGGER_MS,
-        duration: BUBBLE_ANIMATION_MS,
-        mode: Clutter.AnimationMode.EASE_OUT_BACK,
+        duration: FADE_MS,
+        delay,
+        mode: Clutter.AnimationMode.EASE_OUT_QUAD,
       });
+    });
+  }
+
+  private collapseBubbles(): void {
+    if (!this.bubblesShown) return;
+
+    this.bubblesShown = false;
+    this.cancelTimers();
+
+    [...this.bubbles.values()].forEach((bubble, index) => {
+      bubble.reactive = false;
+      springTo(
+        bubble,
+        {
+          scale_x: BUBBLE_START_SCALE,
+          scale_y: BUBBLE_START_SCALE,
+          translation_x: -bubbleEmergeOffset(index),
+        },
+        { spring: SPRING_SMOOTH },
+      );
+      bubble.ease({
+        opacity: 0,
+        duration: COLLAPSE_MS,
+        mode: Clutter.AnimationMode.EASE_IN_QUAD,
+      });
+    });
+
+    this.collapseSource = GLib.timeout_add(GLib.PRIORITY_DEFAULT, COLLAPSE_MS, () => {
+      this.collapseSource = 0;
+      this.bubbleBox.visible = false;
+      stopMotion(this.row);
+      this.row.translation_x = -bubbleStripWidth(BUBBLES.length) / 2;
+      springTo(this.row, { translation_x: 0 }, { spring: SPRING_DEFAULT });
+      return GLib.SOURCE_REMOVE;
     });
   }
 
   private hideBubbles(): void {
     this.bubblesShown = false;
+    this.cancelTimers();
+    stopMotion(this.row);
+    this.row.translation_x = 0;
+    this.bubbleBox.visible = false;
     this.bubbles.forEach((bubble) => {
+      stopMotion(bubble);
       bubble.remove_all_transitions();
       bubble.set({
         opacity: 0,
-        scaleX: BUBBLE_START_SCALE,
-        scaleY: BUBBLE_START_SCALE,
-        translationX: -BUBBLE_TRAVEL_PX,
+        scale_x: BUBBLE_START_SCALE,
+        scale_y: BUBBLE_START_SCALE,
+        translation_x: 0,
         reactive: false,
       });
     });
   }
 
+  private animateHeight(actor: St.ScrollView, from: number): void {
+    stopMotion(actor, ["height"]);
+    actor.set_height(-1);
+    const natural = actor.get_preferred_height(-1)[1];
+    if (Math.abs(natural - from) < MIN_HEIGHT_CHANGE_PX) return;
+
+    actor.set_height(from);
+    springTo(
+      actor,
+      { height: natural },
+      { spring: SPRING_DEFAULT, onComplete: () => actor.set_height(-1) },
+    );
+  }
+
   private animateIn(): void {
+    stopMotion(this.panel);
     this.panel.remove_all_transitions();
     this.panel.set_pivot_point(0.5, 0.2);
-    this.panel.set({ opacity: 0, scaleX: OPEN_START_SCALE, scaleY: OPEN_START_SCALE });
-    this.panel.ease({
-      scaleX: 1,
-      scaleY: 1,
-      duration: OPEN_ANIMATION_MS,
-      mode: Clutter.AnimationMode.EASE_OUT_BACK,
+    this.panel.set({
+      opacity: 0,
+      scale_x: OPEN_START_SCALE,
+      scale_y: OPEN_START_SCALE,
+      translation_y: -OPEN_RISE_PX,
     });
+    springTo(this.panel, { scale_x: 1, scale_y: 1, translation_y: 0 }, { spring: SPRING_BOUNCY });
     this.panel.ease({
       opacity: 255,
-      duration: FADE_ANIMATION_MS,
+      duration: FADE_MS,
       mode: Clutter.AnimationMode.EASE_OUT_QUAD,
     });
   }
 
+  private animateOut(): void {
+    springTo(
+      this.panel,
+      { scale_x: CLOSE_END_SCALE, scale_y: CLOSE_END_SCALE },
+      { spring: SPRING_SMOOTH },
+    );
+    this.backdrop.ease({
+      opacity: 0,
+      duration: CLOSE_MS,
+      mode: Clutter.AnimationMode.EASE_IN_QUAD,
+      onComplete: () => {
+        if (!this.grab) this.backdrop.get_parent()?.remove_child(this.backdrop);
+      },
+    });
+  }
+
   private animateResultsIn(): void {
+    stopMotion(this.scrollView, ["translation_y"]);
     this.scrollView.remove_all_transitions();
-    this.scrollView.set({ opacity: 0, translationY: -RESULTS_SLIDE_PX });
+    this.scrollView.set({ opacity: 0, translation_y: -RESULTS_SLIDE_PX });
+    springTo(this.scrollView, { translation_y: 0 }, { spring: SPRING_SNAPPY });
     this.scrollView.ease({
       opacity: 255,
-      translationY: 0,
-      duration: FADE_ANIMATION_MS,
+      duration: FADE_MS,
       mode: Clutter.AnimationMode.EASE_OUT_QUAD,
     });
   }
