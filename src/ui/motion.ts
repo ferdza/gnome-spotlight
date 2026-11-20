@@ -13,7 +13,8 @@ export type MotionProperty =
   | "scale_y"
   | "translation_x"
   | "translation_y"
-  | "height";
+  | "height"
+  | "width";
 
 export type MotionTargets = Partial<Record<MotionProperty, number>>;
 
@@ -27,10 +28,15 @@ const MAX_OPACITY = 255;
 const running = new WeakMap<Clutter.Actor, Map<MotionProperty, Clutter.Timeline>>();
 
 const readProperty = (actor: Clutter.Actor, property: MotionProperty): number =>
-  property === "height" ? actor.get_height() : actor[property];
+  property === "height"
+    ? actor.get_height()
+    : property === "width"
+      ? actor.get_width()
+      : actor[property];
 
 const writeProperty = (actor: Clutter.Actor, property: MotionProperty, value: number): void => {
   if (property === "height") actor.set_height(Math.max(0, value));
+  else if (property === "width") actor.set_width(Math.max(0, value));
   else if (property === "opacity")
     actor.opacity = Math.round(Math.min(Math.max(value, 0), MAX_OPACITY));
   else actor[property] = value;

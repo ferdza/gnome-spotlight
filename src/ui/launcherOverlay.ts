@@ -78,7 +78,8 @@ const BUBBLES: readonly BubbleSpec[] = [
 
 const PREVIEW_TOP_PX = 96;
 const SEARCH_ICON = "edit-find-symbolic";
-const APP_COLUMNS = 5;
+const APP_COLUMNS = 6;
+const TOTAL_WIDTH = 820;
 const TOP_OFFSET_RATIO = 0.25;
 const OPEN_START_SCALE = 0.9;
 const OPEN_RISE_PX = 14;
@@ -90,23 +91,23 @@ const MIN_HEIGHT_CHANGE_PX = 4;
 const REVEAL_DELAY_MS = 650;
 const BUBBLE_SIZE = 52;
 const BUBBLE_GAP = 10;
-const BUBBLE_MARGIN = 12;
-const BUBBLE_OVERLAP = 30;
+const BUBBLE_PANEL_GAP = 12;
 const BUBBLE_STAGGER_MS = 60;
 const BUBBLE_START_SCALE = 0.35;
 const BUBBLE_HOVER_SCALE = 1.08;
 const COLLAPSE_MS = 150;
+const COLLAPSE_STAGGER_MS = 35;
+const BUBBLE_FIRST_DELAY_MS = 90;
 const PRESS_SCALE = 0.93;
 const SELECTED_TILE_SCALE = 1.05;
 const TILE_START_SCALE = 0.82;
 const TILE_STAGGER_MS = 14;
 const TILE_STAGGER_LIMIT = 25;
 
-const bubbleEmergeOffset = (index: number): number =>
-  BUBBLE_MARGIN + index * (BUBBLE_SIZE + BUBBLE_GAP) + BUBBLE_OVERLAP;
+const bubbleStripWidth = (count: number): number => count * BUBBLE_SIZE + (count - 1) * BUBBLE_GAP;
 
-const bubbleStripWidth = (count: number): number =>
-  BUBBLE_MARGIN + count * BUBBLE_SIZE + (count - 1) * BUBBLE_GAP;
+const panelWidthWithBubbles = (count: number): number =>
+  TOTAL_WIDTH - bubbleStripWidth(count) - BUBBLE_PANEL_GAP;
 
 const PANEL_SURFACE_CLASSES: Record<PanelSurface, string> = {
   [PanelSurface.GLASS]: "launcher-panel-glass",
@@ -146,7 +147,7 @@ const ENTER_KEYS = new Set<number>([
 export class LauncherOverlay implements LauncherView {
   private readonly backdrop: St.Widget;
   private readonly monitorConstraint: MonitorConstraint;
-  private readonly row: St.BoxLayout;
+  private readonly row: St.Widget;
   private readonly panel: St.BoxLayout;
   private readonly entry: St.Entry;
   private readonly entryIcon: St.Icon;
@@ -166,7 +167,6 @@ export class LauncherOverlay implements LauncherView {
   private mode: BrowseMode | null = null;
   private bubblesShown = false;
   private revealSource = 0;
-  private collapseSource = 0;
   private quiet = false;
   private readonly overscrolls: OverscrollBounce[] = [];
   private grab: Clutter.Grab | null = null;
@@ -236,7 +236,9 @@ export class LauncherOverlay implements LauncherView {
     });
     BUBBLES.forEach((spec) => this.bubbleBox.add_child(this.createBubble(spec)));
 
-    this.row = new St.BoxLayout({});
+    this.panel.set_width(TOTAL_WIDTH);
+    this.bubbleBox.set_position(TOTAL_WIDTH - bubbleStripWidth(BUBBLES.length), 0);
+    this.row = new St.Widget({ width: TOTAL_WIDTH });
     this.row.add_child(this.panel);
     this.row.add_child(this.bubbleBox);
 
@@ -796,8 +798,6 @@ export class LauncherOverlay implements LauncherView {
 
   private cancelTimers(): void {
     this.cancelReveal();
-    if (this.collapseSource) GLib.source_remove(this.collapseSource);
-    this.collapseSource = 0;
   }
 
   private revealBubbles(): void {
@@ -806,26 +806,18 @@ export class LauncherOverlay implements LauncherView {
     this.bubblesShown = true;
     this.cancelTimers();
 
-    this.bubbleBox.visible = true;
-    stopMotion(this.row);
-    this.row.translation_x = bubbleStripWidth(BUBBLES.length) / 2;
-    springTo(this.row, { translation_x: 0 }, { spring: SPRING_DEFAULT });
+    springTo(
+      this.panel,
+      { width: panelWidthWithBubbles(BUBBLES.length) },
+      { spring: SPRING_DEFAULT },
+    );
 
     this.slots.forEach(({ slot, bubble }, index) => {
-      const delay = index * BUBBLE_STAGGER_MS;
+      const delay = BUBBLE_FIRST_DELAY_MS + index * BUBBLE_STAGGER_MS;
       stopMotion(slot);
       bubble.reactive = true;
-      slot.set({
-        opacity: 0,
-        scale_x: BUBBLE_START_SCALE,
-        scale_y: BUBBLE_START_SCALE,
-        translation_x: -bubbleEmergeOffset(index),
-      });
-      springTo(
-        slot,
-        { scale_x: 1, scale_y: 1, translation_x: 0 },
-        { spring: SPRING_BOUNCY, delay },
-      );
+      slot.set({ opacity: 0, scale_x: BUBBLE_START_SCALE, scale_y: BUBBLE_START_SCALE });
+      springTo(slot, { scale_x: 1, scale_y: 1 }, { spring: SPRING_BOUNCY, delay });
       slot.ease({
         opacity: 255,
         duration: FADE_MS,
@@ -841,49 +833,34 @@ export class LauncherOverlay implements LauncherView {
     this.bubblesShown = false;
     this.cancelTimers();
 
+    springTo(this.panel, { width: TOTAL_WIDTH }, { spring: SPRING_DEFAULT });
+
     this.slots.forEach(({ slot, bubble }, index) => {
       bubble.reactive = false;
+      const delay = (this.slots.length - 1 - index) * COLLAPSE_STAGGER_MS;
       springTo(
         slot,
-        {
-          scale_x: BUBBLE_START_SCALE,
-          scale_y: BUBBLE_START_SCALE,
-          translation_x: -bubbleEmergeOffset(index),
-        },
-        { spring: SPRING_SMOOTH },
+        { scale_x: BUBBLE_START_SCALE, scale_y: BUBBLE_START_SCALE },
+        { spring: SPRING_SMOOTH, delay },
       );
       slot.ease({
         opacity: 0,
         duration: COLLAPSE_MS,
+        delay,
         mode: Clutter.AnimationMode.EASE_IN_QUAD,
       });
-    });
-
-    this.collapseSource = GLib.timeout_add(GLib.PRIORITY_DEFAULT, COLLAPSE_MS, () => {
-      this.collapseSource = 0;
-      this.bubbleBox.visible = false;
-      stopMotion(this.row);
-      this.row.translation_x = -bubbleStripWidth(BUBBLES.length) / 2;
-      springTo(this.row, { translation_x: 0 }, { spring: SPRING_DEFAULT });
-      return GLib.SOURCE_REMOVE;
     });
   }
 
   private hideBubbles(): void {
     this.bubblesShown = false;
     this.cancelTimers();
-    stopMotion(this.row);
-    this.row.translation_x = 0;
-    this.bubbleBox.visible = false;
+    stopMotion(this.panel, ["width"]);
+    this.panel.set_width(TOTAL_WIDTH);
     this.slots.forEach(({ slot, bubble }) => {
       stopMotion(slot);
       slot.remove_all_transitions();
-      slot.set({
-        opacity: 0,
-        scale_x: BUBBLE_START_SCALE,
-        scale_y: BUBBLE_START_SCALE,
-        translation_x: 0,
-      });
+      slot.set({ opacity: 0, scale_x: BUBBLE_START_SCALE, scale_y: BUBBLE_START_SCALE });
       bubble.reactive = false;
     });
   }
