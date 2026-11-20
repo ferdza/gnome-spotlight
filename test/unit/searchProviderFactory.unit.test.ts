@@ -3,11 +3,13 @@
  */
 import { describe, expect, test } from "bun:test";
 
+import { ClipboardHistory } from "@domain/clipboard/clipboardHistory";
 import { QueryMode } from "@domain/query/queryParser";
 import { createSearchProviders } from "@provider/searchProviderFactory";
 import {
   identity,
   makeAppCatalog,
+  makePinnedApps,
   makeClipboard,
   makeCommandRunner,
   makeDirectoryReader,
@@ -26,6 +28,8 @@ const listProviders = createSearchProviders({
   directories: makeDirectoryReader({}).reader,
   launcher: makeLauncher().launcher,
   clipboard: makeClipboard().clipboard,
+  clipboardHistory: new ClipboardHistory(),
+  pins: makePinnedApps().pins,
   commands: makeCommandRunner().runner,
   webResults: makeWebResultsClient([]).client,
   unitConverter: makeUnitConverter({}).converter,
@@ -41,8 +45,8 @@ const listProviders = createSearchProviders({
 });
 
 describe("createSearchProviders", () => {
-  test("cria as dez fontes da extensão e uma por provedor do panorama que ela não cobre", () => {
-    expect(listProviders()).toHaveLength(12);
+  test("cria as treze fontes da extensão e uma por provedor do panorama que ela não cobre", () => {
+    expect(listProviders()).toHaveLength(15);
   });
 
   test.each(Object.values(QueryMode))("o modo %p tem pelo menos um provedor", (mode) => {

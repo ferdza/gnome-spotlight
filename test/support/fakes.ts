@@ -2,7 +2,7 @@
  * Portas falsas para os provedores: guardam o que foi pedido para as asserções.
  * Nenhuma depende do GNOME.
  */
-import type { AppCatalog, AppEntry } from "@domain/apps/appPorts";
+import type { AppCatalog, AppEntry, PinnedApps } from "@domain/apps/appPorts";
 import type { UnitConverter } from "@domain/calculator/calculatorPorts";
 import type { DirectoryReader, FileEntry } from "@domain/files/filePorts";
 import type { Clipboard, CommandRunner, UriLauncher } from "@domain/launcher/launcherPorts";
@@ -166,4 +166,17 @@ export const makeOverviewCatalog = (
     list: () => Object.entries(providers).map(toProvider),
   };
   return { catalog, activated, searched };
+};
+
+export const makePinnedApps = (initial: string[] = []) => {
+  const pinned = [...initial];
+  const pins: PinnedApps = {
+    list: () => pinned,
+    toggle: (id) => {
+      const index = pinned.indexOf(id);
+      if (index >= 0) pinned.splice(index, 1);
+      else pinned.push(id);
+    },
+  };
+  return { pins, pinned };
 };

@@ -5,6 +5,9 @@ export const QueryMode = {
   BACKGROUND_COMMAND: "background-command",
   WEB: "web",
   FILES: "files",
+  ACTIONS: "actions",
+  CLIPBOARD: "clipboard",
+  FILE_INDEX: "file-index",
 } as const;
 export type QueryMode = (typeof QueryMode)[keyof typeof QueryMode];
 
@@ -26,6 +29,9 @@ const PREFIX_RULES: Record<string, PrefixRule> = {
   "?": { mode: QueryMode.WEB, keepsPrefix: false },
   "/": { mode: QueryMode.FILES, keepsPrefix: true },
   "~": { mode: QueryMode.FILES, keepsPrefix: true },
+  ":": { mode: QueryMode.ACTIONS, keepsPrefix: false },
+  "!": { mode: QueryMode.CLIPBOARD, keepsPrefix: false },
+  "*": { mode: QueryMode.FILE_INDEX, keepsPrefix: false },
 };
 
 export const parseQuery = (raw: string): ParsedQuery => {

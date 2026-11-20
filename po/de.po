@@ -130,3 +130,24 @@ msgstr "Anwendungen"
 
 msgid "Files"
 msgstr "Dateien"
+
+msgid "Actions"
+msgstr "Aktionen"
+
+msgid "Clipboard"
+msgstr "Zwischenablage"
+
+msgid "Pinned"
+msgstr "Angeheftet"
+
+msgid "Suggested"
+msgstr "Vorgeschlagen"
+
+msgid "Search all files"
+msgstr "Alle Dateien durchsuchen"
+
+msgid "System actions"
+msgstr "Systemaktionen"
+
+msgid "Clipboard history"
+msgstr "Zwischenablage-Verlauf"

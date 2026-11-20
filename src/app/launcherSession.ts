@@ -5,12 +5,16 @@ import Shell from "gi://Shell";
 import * as Main from "resource:///org/gnome/shell/ui/main.js";
 
 import { toggleShortcut } from "@app/shortcutToggle";
+import { ClipboardHistory } from "@domain/clipboard/clipboardHistory";
 import type { Translate } from "@i18n/translate";
 import { DuckDuckGoClient } from "@infra/gnome/duckDuckGoClient";
 import { GioDirectoryReader } from "@infra/gnome/gioDirectoryReader";
+import { GioFilePreview } from "@infra/gnome/gioFilePreview";
 import { GnomeCalculatorConverter } from "@infra/gnome/gnomeCalculatorConverter";
 import { SettingsKey } from "@infra/gnome/settingsKeys";
+import { SettingsPinnedApps } from "@infra/gnome/settingsPinnedApps";
 import { ShellAppCatalog } from "@infra/gnome/shellAppCatalog";
+import { ShellClipboardWatcher } from "@infra/gnome/shellClipboardWatcher";
 import { ShellCommandRunner } from "@infra/gnome/shellCommandRunner";
 import { ShellLauncher } from "@infra/gnome/shellLauncher";
 import { ShellOverviewProviderCatalog } from "@infra/gnome/shellOverviewProviderCatalog";
@@ -30,13 +34,16 @@ export class LauncherSession {
   private readonly webResults = new DuckDuckGoClient();
   private readonly unitConverter = new GnomeCalculatorConverter();
   private readonly overviewProviders = new ShellOverviewProviderCatalog();
+  private readonly clipboardHistory = new ClipboardHistory();
+  private readonly clipboardWatcher = new ShellClipboardWatcher(this.clipboardHistory);
   private readonly overlay: LauncherOverlay;
 
   constructor(
     private readonly settings: Gio.Settings,
     private readonly t: Translate,
   ) {
-    this.overlay = new LauncherOverlay(t, this.apps);
+    const pins = new SettingsPinnedApps(settings);
+    this.overlay = new LauncherOverlay(t, this.apps, pins, new GioFilePreview());
 
     const providers = createSearchProviders({
       apps: this.apps,
@@ -45,6 +52,8 @@ export class LauncherSession {
       directories: new GioDirectoryReader(),
       launcher: new ShellLauncher(),
       clipboard: new StClipboard(),
+      clipboardHistory: this.clipboardHistory,
+      pins,
       commands: new ShellCommandRunner(),
       webResults: this.webResults,
       unitConverter: this.unitConverter,
@@ -93,6 +102,7 @@ export class LauncherSession {
     Main.wm.removeKeybinding(SettingsKey.TOGGLE_LAUNCHER);
     this.overlay.destroy();
     this.apps.destroy();
+    this.clipboardWatcher.destroy();
     this.webResults.destroy();
     this.unitConverter.destroy();
     this.overviewProviders.destroy();

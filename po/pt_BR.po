@@ -127,3 +127,24 @@ msgstr "Aplicativos"
 
 msgid "Files"
 msgstr "Arquivos"
+
+msgid "Actions"
+msgstr "Ações"
+
+msgid "Clipboard"
+msgstr "Área de transferência"
+
+msgid "Pinned"
+msgstr "Fixado"
+
+msgid "Suggested"
+msgstr "Sugerido"
+
+msgid "Search all files"
+msgstr "Buscar em todos os arquivos"
+
+msgid "System actions"
+msgstr "Ações do sistema"
+
+msgid "Clipboard history"
+msgstr "Histórico da área de transferência"

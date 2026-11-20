@@ -1,5 +1,6 @@
 export const SettingsKey = {
   TOGGLE_LAUNCHER: "toggle-launcher",
+  PINNED_APPS: "pinned-apps",
   WEB_SEARCH_URL: "web-search-url",
   MAX_RESULTS: "max-results",
   KEYWORD_SEARCHES: "keyword-searches",

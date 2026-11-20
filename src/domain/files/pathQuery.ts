@@ -29,5 +29,19 @@ export const abbreviateHome = (path: string, home: string): string => {
   return path;
 };
 
-export const toFilesQuery = (text: string): string =>
-  text.startsWith("/") || text.startsWith("~") ? text : `~/${text}`;
+export const toFilesQuery = (text: string): string => {
+  if (!text) return "~/";
+  return text.startsWith("/") || text.startsWith("~") ? text : `*${text}`;
+};
+
+const FILE_URI_PREFIX = "file://";
+
+export const uriToPath = (uri: string): string | undefined => {
+  if (!uri.startsWith(FILE_URI_PREFIX)) return undefined;
+
+  try {
+    return decodeURIComponent(uri.slice(FILE_URI_PREFIX.length));
+  } catch {
+    return undefined;
+  }
+};

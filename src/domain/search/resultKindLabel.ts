@@ -11,6 +11,7 @@ const KIND_LABELS: Record<ResultKind, (t: Translate) => string> = {
   [ResultKind.SYSTEM]: (t) => t("System"),
   [ResultKind.WEB]: (t) => t("Web"),
   [ResultKind.PROVIDER]: (t) => t("Search"),
+  [ResultKind.CLIPBOARD]: (t) => t("Clipboard"),
 };
 
 export const getResultKindLabel = (kind: ResultKind, t: Translate): string => KIND_LABELS[kind](t);

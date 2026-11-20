@@ -61,6 +61,10 @@ export class LauncherPresenter {
     }
   }
 
+  selectedResult(): SearchResult | undefined {
+    return this.results[this.cursor.index];
+  }
+
   onComplete(): void {
     const completion = this.results[this.cursor.index]?.completion;
     if (!completion) return;

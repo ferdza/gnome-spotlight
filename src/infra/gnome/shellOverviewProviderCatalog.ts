@@ -61,12 +61,13 @@ class ShellOverviewProvider implements OverviewProvider {
     this.name = provider.appInfo?.get_name() ?? undefined;
   }
 
-  async search(terms: readonly string[]): Promise<readonly OverviewResult[]> {
+  async search(
+    terms: readonly string[],
+    limit = RESULTS_PER_PROVIDER,
+  ): Promise<readonly OverviewResult[]> {
     const shellTerms = [...terms];
     const ids = await this.provider.getInitialResultSet(shellTerms, this.cancellable);
-    const firstIds =
-      this.provider.filterResults?.(ids, RESULTS_PER_PROVIDER) ??
-      ids.slice(0, RESULTS_PER_PROVIDER);
+    const firstIds = this.provider.filterResults?.(ids, limit) ?? ids.slice(0, limit);
     if (firstIds.length === 0 || this.cancellable.is_cancelled()) return [];
 
     const metas = await this.provider.getResultMetas(firstIds, this.cancellable);

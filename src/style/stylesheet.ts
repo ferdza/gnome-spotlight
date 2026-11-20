@@ -204,6 +204,54 @@ const TEMPLATE = `
 .launcher-bubble-icon {
   icon-size: 22px;
 }
+
+.launcher-bubble-hint {
+  margin-top: 3px;
+  font-size: 0.7em;
+  color: {{dimText}};
+}
+
+.launcher-tile-pin {
+  icon-size: 11px;
+  padding-right: 4px;
+  color: {{dimText}};
+}
+
+.launcher-preview {
+  width: 420px;
+  padding: 18px;
+  spacing: 6px;
+  border-radius: 18px;
+  color: {{text}};
+  border: 1px solid {{panelBorder}};
+}
+
+.launcher-preview-icon {
+  icon-size: 168px;
+  padding-bottom: 8px;
+}
+
+.launcher-preview-title {
+  font-size: 1.15em;
+  font-weight: 700;
+  text-align: center;
+}
+
+.launcher-preview-details {
+  color: {{dimText}};
+  text-align: center;
+}
+
+.launcher-preview-path {
+  font-size: 0.82em;
+  color: {{dimText}};
+  text-align: center;
+}
+
+.launcher-preview-text {
+  max-height: 260px;
+  font-size: 0.95em;
+}
 `;
 
 export const buildStylesheet = (variant: ThemeVariant): string => {

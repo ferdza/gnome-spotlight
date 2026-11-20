@@ -15,3 +15,8 @@ export interface AppCatalog {
   list(): readonly AppEntry[];
   launch(id: string): void;
 }
+
+export interface PinnedApps {
+  list(): readonly string[];
+  toggle(id: string): void;
+}

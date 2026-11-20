@@ -37,6 +37,17 @@ describe("parseQuery", () => {
     expect(parsed.term).toBe(term);
   });
 
+  test.each([
+    [":lock", QueryMode.ACTIONS, "lock"],
+    ["!senha", QueryMode.CLIPBOARD, "senha"],
+    ["*relatorio", QueryMode.FILE_INDEX, "relatorio"],
+  ] as const)("%p entra no modo %s sem o prefixo", (raw, mode, term) => {
+    const parsed = parseQuery(raw);
+
+    expect(parsed.mode).toBe(mode);
+    expect(parsed.term).toBe(term);
+  });
+
   test("texto vazio continua no modo padrão com termo vazio", () => {
     expect(parseQuery("   ").term).toBe("");
   });

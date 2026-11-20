@@ -4,7 +4,7 @@
  */
 import { describe, expect, test } from "bun:test";
 
-import { abbreviateHome, parsePathQuery, toFilesQuery } from "@domain/files/pathQuery";
+import { abbreviateHome, parsePathQuery, toFilesQuery, uriToPath } from "@domain/files/pathQuery";
 
 const HOME = "/home/maria";
 
@@ -51,11 +51,24 @@ describe("abbreviateHome", () => {
 describe("toFilesQuery", () => {
   test.each([
     ["", "~/"],
-    ["doc", "~/doc"],
+    ["doc", "*doc"],
     ["~/Docs/", "~/Docs/"],
     ["/etc", "/etc"],
     ["~", "~"],
   ])("%j vira %j", (text, expected) => {
     expect(toFilesQuery(text)).toBe(expected);
   });
+});
+
+describe("uriToPath", () => {
+  test("converte endereço de arquivo em caminho decodificado", () => {
+    expect(uriToPath("file:///home/maria/Meus%20docs/a.txt")).toBe("/home/maria/Meus docs/a.txt");
+  });
+
+  test.each(["https://example.com/a", "trash:///x", "file:///%E0%A4%A"])(
+    "%p não vira caminho",
+    (uri) => {
+      expect(uriToPath(uri)).toBeUndefined();
+    },
+  );
 });

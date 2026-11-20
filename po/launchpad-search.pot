@@ -3,6 +3,9 @@ msgid ""
 msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 
+msgid "Actions"
+msgstr ""
+
 msgid "Add"
 msgstr ""
 
@@ -28,6 +31,12 @@ msgid "Cancel"
 msgstr ""
 
 msgid "Change"
+msgstr ""
+
+msgid "Clipboard"
+msgstr ""
+
+msgid "Clipboard history"
 msgstr ""
 
 msgid "Command"
@@ -63,6 +72,9 @@ msgstr ""
 msgid "New keyword search"
 msgstr ""
 
+msgid "Pinned"
+msgstr ""
+
 msgid "Prefixes"
 msgstr ""
 
@@ -87,6 +99,9 @@ msgstr ""
 msgid "Search %s for “%s”"
 msgstr ""
 
+msgid "Search all files"
+msgstr ""
+
 msgid "Search apps, windows, files or type a calculation"
 msgstr ""
 
@@ -99,10 +114,16 @@ msgstr ""
 msgid "Shortcut"
 msgstr ""
 
+msgid "Suggested"
+msgstr ""
+
 msgid "Switch to %s"
 msgstr ""
 
 msgid "System"
+msgstr ""
+
+msgid "System actions"
 msgstr ""
 
 msgid "Type the keyword before the text, for example: @y cats"

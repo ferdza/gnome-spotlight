@@ -11,7 +11,7 @@ export interface OverviewResult {
 export interface OverviewProvider {
   readonly id: string;
   readonly name?: string;
-  search(terms: readonly string[]): Promise<readonly OverviewResult[]>;
+  search(terms: readonly string[], limit?: number): Promise<readonly OverviewResult[]>;
 }
 
 export interface OverviewProviderCatalog {

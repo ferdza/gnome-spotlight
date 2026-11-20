@@ -9,7 +9,7 @@ const KEYWORD_ONLY_SCORE = 0.5;
 
 export class SystemActionSearchProvider extends ModeSearchProvider {
   constructor(private readonly catalog: SystemActionCatalog) {
-    super([QueryMode.DEFAULT]);
+    super([QueryMode.DEFAULT, QueryMode.ACTIONS], [QueryMode.ACTIONS]);
   }
 
   async search({ term }: ParsedQuery): Promise<readonly SearchResult[]> {

@@ -1,5 +1,6 @@
-import type { AppCatalog } from "@domain/apps/appPorts";
+import type { AppCatalog, PinnedApps } from "@domain/apps/appPorts";
 import type { UnitConverter } from "@domain/calculator/calculatorPorts";
+import type { ClipboardHistory } from "@domain/clipboard/clipboardHistory";
 import type { DirectoryReader } from "@domain/files/filePorts";
 import type {
   Clipboard,
@@ -15,10 +16,13 @@ import type { WindowCatalog } from "@domain/windows/windowPorts";
 import type { Translate } from "@i18n/translate";
 import { AppSearchProvider } from "@provider/appSearchProvider";
 import { CalculatorSearchProvider } from "@provider/calculatorSearchProvider";
+import { ClipboardSearchProvider } from "@provider/clipboardSearchProvider";
 import { CommandSearchProvider } from "@provider/commandSearchProvider";
+import { FileIndexSearchProvider } from "@provider/fileIndexSearchProvider";
 import { FileSearchProvider } from "@provider/fileSearchProvider";
 import { KeywordSearchProvider } from "@provider/keywordSearchProvider";
 import { isCoveredByLauncher, OverviewSearchProvider } from "@provider/overviewSearchProvider";
+import { SuggestionSearchProvider } from "@provider/suggestionSearchProvider";
 import { SystemActionSearchProvider } from "@provider/systemActionSearchProvider";
 import { UnitConversionSearchProvider } from "@provider/unitConversionSearchProvider";
 import { WebResultsSearchProvider } from "@provider/webResultsSearchProvider";
@@ -32,6 +36,8 @@ export interface SearchProviderDependencies {
   readonly directories: DirectoryReader;
   readonly launcher: UriLauncher;
   readonly clipboard: Clipboard;
+  readonly clipboardHistory: ClipboardHistory;
+  readonly pins: PinnedApps;
   readonly commands: CommandRunner;
   readonly webResults: WebResultsClient;
   readonly unitConverter: UnitConverter;
@@ -46,6 +52,7 @@ export const createSearchProviders = (
 ): (() => readonly SearchProvider[]) => {
   const launcherProviders: readonly SearchProvider[] = [
     new AppSearchProvider(deps.apps),
+    new SuggestionSearchProvider(deps.apps, deps.pins, deps.translate),
     new WindowSearchProvider(deps.windows, deps.translate),
     new CalculatorSearchProvider(deps.clipboard, deps.translate),
     new UnitConversionSearchProvider(deps.unitConverter, deps.clipboard, deps.translate),
@@ -55,6 +62,8 @@ export const createSearchProviders = (
     new WebSearchProvider(deps.launcher, deps.settings, deps.translate),
     new KeywordSearchProvider(deps.launcher, deps.settings, deps.translate),
     new WebResultsSearchProvider(deps.webResults, deps.launcher),
+    new ClipboardSearchProvider(deps.clipboardHistory, deps.clipboard, deps.translate),
+    new FileIndexSearchProvider(deps.overviewProviders, deps.launcher),
   ];
 
   return () => [

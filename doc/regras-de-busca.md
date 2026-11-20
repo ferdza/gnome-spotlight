@@ -9,7 +9,10 @@
 | `>` | comando no terminal | não |
 | `$` | comando em segundo plano | não |
 | `?` | web: 10 resultados do DuckDuckGo + linha da busca completa | não |
-| `/` ou `~` | arquivos | sim, faz parte do caminho |
+| `/` ou `~` | arquivos (caminho) | sim, faz parte do caminho |
+| `*` | arquivos em qualquer pasta, pelo índice do GNOME | não |
+| `:` | ações do sistema (caixa vazia lista todas) | não |
+| `!` | histórico da área de transferência (caixa vazia lista tudo) | não |
 
 Termo vazio não consulta nenhum provedor.
 
@@ -85,3 +88,29 @@ Developer Edition".
 Esc cancela, Backspace deixa sem atalho, tecla modificadora sozinha espera a próxima tecla.
 Letra sem Super, Ctrl ou Alt é recusada (Shift sozinho só faz maiúscula). Tecla de função
 sozinha (F1 a F12) vale.
+
+## Caixa vazia (sugestões)
+
+Só quem declara `answersEmptyTerm` para o modo é consultado com termo vazio. No modo padrão é o
+`SuggestionSearchProvider`: apps fixados (na ordem em que foram fixados), depois os 5 mais usados
+(`Shell.AppUsage`). Fixar é Ctrl+P ou botão direito num ícone do modo Apps; a lista fica na chave
+`pinned-apps`.
+
+## Arquivos em qualquer pasta (`*`)
+
+Usa o provedor de busca do app Arquivos (`org.gnome.Nautilus.desktop`) que o panorama já
+consulta, com até 12 resultados. Precisa de Arquivos ligado em Configurações > Pesquisar; sem
+ele a lista fica vazia. Enter mostra o arquivo no gerenciador de arquivos. No modo Arquivos das
+bolhas, texto sem `/` ou `~` vira `*texto`.
+
+## Área de transferência
+
+`ShellClipboardWatcher` escuta `Meta.Selection` (`owner-changed`) e guarda em MEMÓRIA os últimos 30
+textos de até 4000 caracteres (nada em disco, tudo apagado ao desativar a extensão). A extensão não
+tem como saber se o texto veio de um gerenciador de senhas. Enter copia o item de novo.
+
+## Prévia (Ctrl+Y)
+
+Resultado com `preview` (arquivo, pasta, item da área de transferência) abre um cartão flutuante;
+as setas atualizam o cartão, Esc ou Ctrl+Y fecham. Arquivo: nome, tipo, tamanho, data, miniatura
+(imagens aparecem em tamanho grande).

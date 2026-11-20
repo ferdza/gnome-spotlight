@@ -36,9 +36,13 @@ export class SearchService {
 
   async search(raw: string, onUpdate: ResultsUpdateListener = () => {}): Promise<SearchResult[]> {
     const query = parseQuery(raw);
-    if (!query.term) return [];
+    const active = this.providers().filter(
+      (provider) =>
+        provider.answers(query.mode) &&
+        (query.term !== "" || provider.answersEmptyTerm?.(query.mode) === true),
+    );
+    if (active.length === 0) return [];
 
-    const active = this.providers().filter((provider) => provider.answers(query.mode));
     const remote = active.filter((provider) => provider.isRemote);
     const local = active.filter((provider) => !provider.isRemote);
     const collected: SearchResult[] = [];

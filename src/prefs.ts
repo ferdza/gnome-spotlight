@@ -21,6 +21,9 @@ const PREFIXES: readonly PrefixHelp[] = [
   { prefix: "$", description: () => _("Run in background") },
   { prefix: "/  ~", description: () => _("Browse files and folders") },
   { prefix: "?", description: () => _("Search the web") },
+  { prefix: "*", description: () => _("Search all files") },
+  { prefix: ":", description: () => _("System actions") },
+  { prefix: "!", description: () => _("Clipboard history") },
 ];
 
 export default class LauncherPreferences extends ExtensionPreferences {

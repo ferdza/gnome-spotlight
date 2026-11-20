@@ -15,14 +15,17 @@ import {
 } from "@domain/animation/spring";
 import { PanelSurface } from "@domain/appearance/panelSurface";
 import { AppGrid, filterApps, GridMove } from "@domain/apps/appGrid";
-import type { AppCatalog, AppEntry } from "@domain/apps/appPorts";
-import { toFilesQuery } from "@domain/files/pathQuery";
+import type { AppCatalog, AppEntry, PinnedApps } from "@domain/apps/appPorts";
+import { orderPinnedFirst } from "@domain/apps/pinning";
+import type { FilePreviewReader } from "@domain/files/filePorts";
+import { BrowseMode, toBrowseQuery } from "@domain/query/browseQuery";
 import { getResultLabel } from "@domain/search/resultKindLabel";
 import type { SearchResult } from "@domain/search/searchResult";
 import type { Translate } from "@i18n/translate";
 import type { LauncherPresenter, LauncherView } from "@ui/launcherPresenter";
 import { springTo, stopMotion } from "@ui/motion";
 import { OverscrollBounce } from "@ui/overscrollBounce";
+import { PreviewCard } from "@ui/previewCard";
 import { ResultRow } from "@ui/resultRow";
 import { toIconProps } from "@ui/searchIconProps";
 import { applySurface, BLUR_TARGET_CLASS, ENTRY_INLINE_STYLE } from "@ui/surface";
@@ -35,14 +38,9 @@ export type LauncherListener = Pick<
   | "onActivateAt"
   | "onComplete"
   | "onEscape"
+  | "selectedResult"
   | "reset"
 >;
-
-const BrowseMode = {
-  APPS: "apps",
-  FILES: "files",
-} as const;
-type BrowseMode = (typeof BrowseMode)[keyof typeof BrowseMode];
 
 interface BubbleSpec {
   readonly mode: BrowseMode;
@@ -64,8 +62,21 @@ const BUBBLES: readonly BubbleSpec[] = [
     key: Clutter.KEY_2,
     label: (t) => t("Files"),
   },
+  {
+    mode: BrowseMode.ACTIONS,
+    icon: "system-run-symbolic",
+    key: Clutter.KEY_3,
+    label: (t) => t("Actions"),
+  },
+  {
+    mode: BrowseMode.CLIPBOARD,
+    icon: "edit-paste-symbolic",
+    key: Clutter.KEY_4,
+    label: (t) => t("Clipboard"),
+  },
 ];
 
+const PREVIEW_TOP_PX = 96;
 const SEARCH_ICON = "edit-find-symbolic";
 const APP_COLUMNS = 5;
 const TOP_OFFSET_RATIO = 0.25;
@@ -146,6 +157,9 @@ export class LauncherOverlay implements LauncherView {
   private readonly appBox: St.BoxLayout;
   private readonly bubbleBox: St.BoxLayout;
   private readonly bubbles = new Map<BrowseMode, St.Button>();
+  private readonly slots: { readonly slot: St.BoxLayout; readonly bubble: St.Button }[] = [];
+  private readonly previewCard = new PreviewCard(BLUR_TARGET_CLASS);
+  private previewToken = 0;
   private readonly appGrid = new AppGrid(APP_COLUMNS);
   private rows: ResultRow[] = [];
   private tiles: St.Button[] = [];
@@ -161,6 +175,8 @@ export class LauncherOverlay implements LauncherView {
   constructor(
     private readonly t: Translate,
     private readonly apps: AppCatalog,
+    private readonly pins: PinnedApps,
+    private readonly previews: FilePreviewReader,
   ) {
     this.entryIcon = new St.Icon({ style_class: "launcher-entry-icon", icon_name: SEARCH_ICON });
     this.entry = new St.Entry({
@@ -228,6 +244,14 @@ export class LauncherOverlay implements LauncherView {
     this.monitorConstraint = new MonitorConstraint({});
     this.backdrop.add_constraint(this.monitorConstraint);
     this.backdrop.add_child(this.row);
+    this.backdrop.add_child(this.previewCard.actor);
+    this.previewCard.actor.add_constraint(
+      new Clutter.AlignConstraint({
+        source: this.backdrop,
+        align_axis: Clutter.AlignAxis.X_AXIS,
+        factor: 0.5,
+      }),
+    );
     this.row.add_constraint(
       new Clutter.AlignConstraint({
         source: this.backdrop,
@@ -276,6 +300,7 @@ export class LauncherOverlay implements LauncherView {
     this.grab = Main.pushModal(this.backdrop, { actionMode: Shell.ActionMode.SYSTEM_MODAL });
     this.resetView();
     this.listener?.reset();
+    void this.listener?.onQueryChanged("");
     this.entry.grab_key_focus();
     this.animateIn();
     this.scheduleReveal();
@@ -285,6 +310,7 @@ export class LauncherOverlay implements LauncherView {
     if (!this.grab) return;
 
     this.cancelTimers();
+    this.hidePreview();
     Main.popModal(this.grab);
     this.grab = null;
     this.animateOut();
@@ -331,6 +357,7 @@ export class LauncherOverlay implements LauncherView {
 
     const selected = this.rows[selectedIndex];
     if (selected) ensureActorVisibleInScrollView(this.scrollView, selected.actor);
+    if (this.previewCard.isVisible) void this.showPreview();
   }
 
   setQueryText(text: string): void {
@@ -342,7 +369,7 @@ export class LauncherOverlay implements LauncherView {
     return this.t("Search apps, windows, files or type a calculation");
   }
 
-  private createBubble(spec: BubbleSpec): St.Button {
+  private createBubble(spec: BubbleSpec): St.BoxLayout {
     const bubble = new St.Button({
       style_class: "launcher-bubble",
       child: new St.Icon({ style_class: "launcher-bubble-icon", icon_name: spec.icon }),
@@ -359,7 +386,18 @@ export class LauncherOverlay implements LauncherView {
     bubble.connect("notify::pressed", settle);
     bubble.connect("notify::hover", settle);
     this.bubbles.set(spec.mode, bubble);
-    return bubble;
+
+    const hint = new St.Label({
+      text: `Ctrl ${BUBBLES.indexOf(spec) + 1}`,
+      style_class: "launcher-bubble-hint",
+      x_align: Clutter.ActorAlign.CENTER,
+    });
+    const slot = new St.BoxLayout({ orientation: Clutter.Orientation.VERTICAL });
+    slot.add_child(bubble);
+    slot.add_child(hint);
+    slot.set_pivot_point(0.5, 0.5);
+    this.slots.push({ slot, bubble });
+    return slot;
   }
 
   private connectSignals(): void {
@@ -382,7 +420,7 @@ export class LauncherOverlay implements LauncherView {
 
     const text = this.entry.get_text();
     if (this.mode === BrowseMode.APPS) this.renderApps(text);
-    else if (this.mode === BrowseMode.FILES) void this.listener?.onQueryChanged(toFilesQuery(text));
+    else if (this.mode) void this.listener?.onQueryChanged(toBrowseQuery(this.mode, text));
     else void this.listener?.onQueryChanged(text);
   }
 
@@ -395,6 +433,7 @@ export class LauncherOverlay implements LauncherView {
     const symbol = event.get_key_symbol();
 
     if (this.onModeShortcut(event, symbol)) return Clutter.EVENT_STOP;
+    if (this.onControlShortcut(event, symbol)) return Clutter.EVENT_STOP;
     if (symbol === Clutter.KEY_Escape) {
       this.onEscape();
       return Clutter.EVENT_STOP;
@@ -420,9 +459,24 @@ export class LauncherOverlay implements LauncherView {
     const spec = BUBBLES.find((bubble) => bubble.key === symbol);
     if (!spec) return false;
 
-    this.revealBubbles();
     this.toggleMode(spec.mode);
     return true;
+  }
+
+  private onControlShortcut(event: Clutter.Event, symbol: number): boolean {
+    if ((event.get_state() & Clutter.ModifierType.CONTROL_MASK) === 0) return false;
+
+    if (symbol === Clutter.KEY_y || symbol === Clutter.KEY_Y) {
+      this.togglePreview();
+      return true;
+    }
+
+    if (this.mode === BrowseMode.APPS && (symbol === Clutter.KEY_p || symbol === Clutter.KEY_P)) {
+      this.togglePin(this.appGrid.selected);
+      return true;
+    }
+
+    return false;
   }
 
   private onAppsKey(symbol: number): boolean {
@@ -443,6 +497,11 @@ export class LauncherOverlay implements LauncherView {
 
   private onEscape(): void {
     const text = this.entry.get_text();
+    if (this.previewCard.isVisible) {
+      this.hidePreview();
+      return;
+    }
+
     if (this.mode && !text) {
       this.leaveMode();
       return;
@@ -458,7 +517,12 @@ export class LauncherOverlay implements LauncherView {
 
   private onBackdropPress(event: Clutter.Event): boolean {
     const target = global.stage.get_event_actor(event);
-    if (target && (this.panel.contains(target) || this.bubbleBox.contains(target)))
+    if (
+      target &&
+      (this.panel.contains(target) ||
+        this.bubbleBox.contains(target) ||
+        this.previewCard.actor.contains(target))
+    )
       return Clutter.EVENT_PROPAGATE;
 
     this.close();
@@ -487,6 +551,7 @@ export class LauncherOverlay implements LauncherView {
   }
 
   private resetView(): void {
+    this.hidePreview();
     this.applyMode(null);
     this.appScroll.visible = false;
     this.appScroll.set_height(-1);
@@ -497,6 +562,7 @@ export class LauncherOverlay implements LauncherView {
   }
 
   private enterMode(mode: BrowseMode): void {
+    this.hidePreview();
     this.applyMode(mode);
     this.collapseBubbles();
 
@@ -506,13 +572,15 @@ export class LauncherOverlay implements LauncherView {
     }
 
     this.hideApps();
-    void this.listener?.onQueryChanged(toFilesQuery(""));
+    void this.listener?.onQueryChanged(toBrowseQuery(mode, ""));
   }
 
   private leaveMode(): void {
+    this.hidePreview();
     this.applyMode(null);
     this.hideApps();
     this.listener?.reset();
+    void this.listener?.onQueryChanged("");
     this.revealBubbles();
   }
 
@@ -545,9 +613,11 @@ export class LauncherOverlay implements LauncherView {
     );
   }
 
-  private renderApps(query: string, entrance = false): void {
+  private renderApps(query: string, entrance = false, keepId?: string): void {
     const previousHeight = this.appScroll.get_height();
-    this.appGrid.setItems(filterApps(this.apps.list(), query));
+    const matches = filterApps(this.apps.list(), query);
+    this.appGrid.setItems(query.trim() ? matches : orderPinnedFirst(matches, this.pins.list()));
+    if (keepId) this.appGrid.select(this.appGrid.entries.findIndex((app) => app.id === keepId));
     this.appBox.destroy_all_children();
     this.tiles = [];
 
@@ -606,16 +676,27 @@ export class LauncherOverlay implements LauncherView {
         ...toIconProps(app.icon),
       }),
     );
-    box.add_child(label);
+
+    const caption = new St.BoxLayout({ x_align: Clutter.ActorAlign.CENTER });
+    if (this.pins.list().includes(app.id))
+      caption.add_child(
+        new St.Icon({ style_class: "launcher-tile-pin", icon_name: "view-pin-symbolic" }),
+      );
+    caption.add_child(label);
+    box.add_child(caption);
 
     const tile = new St.Button({
       style_class: "launcher-tile",
       child: box,
       can_focus: false,
       accessible_name: app.name,
+      button_mask: St.ButtonMask.ONE | St.ButtonMask.THREE,
     });
     tile.set_pivot_point(0.5, 0.5);
-    tile.connect("clicked", () => this.launchApp(app));
+    tile.connect("clicked", (_button: St.Button, mouseButton: number) => {
+      if (mouseButton === Clutter.BUTTON_SECONDARY) this.togglePin(app);
+      else this.launchApp(app);
+    });
     tile.connect("notify::pressed", () => {
       const scale = tile.pressed ? PRESS_SCALE : this.restScale(tile);
       springTo(tile, { scale_x: scale, scale_y: scale }, { spring: SPRING_SNAPPY });
@@ -646,8 +727,48 @@ export class LauncherOverlay implements LauncherView {
     this.apps.launch(app.id);
   }
 
+  private togglePreview(): void {
+    if (this.previewCard.isVisible) this.hidePreview();
+    else void this.showPreview();
+  }
+
+  private hidePreview(): void {
+    this.previewToken += 1;
+    this.previewCard.hide();
+  }
+
+  private async showPreview(): Promise<void> {
+    if (this.mode === BrowseMode.APPS) return;
+
+    const result = this.listener?.selectedResult();
+    const preview = result?.preview;
+    if (!result || !preview) {
+      this.hidePreview();
+      return;
+    }
+
+    const token = ++this.previewToken;
+    if (preview.kind === "text") {
+      this.previewCard.showText(result.title, preview.text);
+      return;
+    }
+
+    const file = await this.previews.describe(preview.path);
+    if (token !== this.previewToken || !this.isOpen) return;
+    if (file) this.previewCard.showFile(file);
+    else this.hidePreview();
+  }
+
+  private togglePin(app: AppEntry | undefined): void {
+    if (!app) return;
+
+    this.pins.toggle(app.id);
+    this.renderApps(this.entry.get_text(), false, app.id);
+  }
+
   private applyPanelSurface(): void {
     applySurface(this.panel, PANEL_SURFACE_CLASSES);
+    applySurface(this.previewCard.actor, PANEL_SURFACE_CLASSES);
   }
 
   private placeOnCurrentMonitor(): void {
@@ -656,6 +777,7 @@ export class LauncherOverlay implements LauncherView {
 
     this.monitorConstraint.index = monitor.index;
     this.row.y = Math.round(monitor.height * TOP_OFFSET_RATIO);
+    this.previewCard.actor.y = this.row.y + PREVIEW_TOP_PX;
   }
 
   private scheduleReveal(): void {
@@ -689,22 +811,22 @@ export class LauncherOverlay implements LauncherView {
     this.row.translation_x = bubbleStripWidth(BUBBLES.length) / 2;
     springTo(this.row, { translation_x: 0 }, { spring: SPRING_DEFAULT });
 
-    [...this.bubbles.values()].forEach((bubble, index) => {
+    this.slots.forEach(({ slot, bubble }, index) => {
       const delay = index * BUBBLE_STAGGER_MS;
-      stopMotion(bubble);
-      bubble.set({
-        reactive: true,
+      stopMotion(slot);
+      bubble.reactive = true;
+      slot.set({
         opacity: 0,
         scale_x: BUBBLE_START_SCALE,
         scale_y: BUBBLE_START_SCALE,
         translation_x: -bubbleEmergeOffset(index),
       });
       springTo(
-        bubble,
+        slot,
         { scale_x: 1, scale_y: 1, translation_x: 0 },
         { spring: SPRING_BOUNCY, delay },
       );
-      bubble.ease({
+      slot.ease({
         opacity: 255,
         duration: FADE_MS,
         delay,
@@ -719,10 +841,10 @@ export class LauncherOverlay implements LauncherView {
     this.bubblesShown = false;
     this.cancelTimers();
 
-    [...this.bubbles.values()].forEach((bubble, index) => {
+    this.slots.forEach(({ slot, bubble }, index) => {
       bubble.reactive = false;
       springTo(
-        bubble,
+        slot,
         {
           scale_x: BUBBLE_START_SCALE,
           scale_y: BUBBLE_START_SCALE,
@@ -730,7 +852,7 @@ export class LauncherOverlay implements LauncherView {
         },
         { spring: SPRING_SMOOTH },
       );
-      bubble.ease({
+      slot.ease({
         opacity: 0,
         duration: COLLAPSE_MS,
         mode: Clutter.AnimationMode.EASE_IN_QUAD,
@@ -753,16 +875,16 @@ export class LauncherOverlay implements LauncherView {
     stopMotion(this.row);
     this.row.translation_x = 0;
     this.bubbleBox.visible = false;
-    this.bubbles.forEach((bubble) => {
-      stopMotion(bubble);
-      bubble.remove_all_transitions();
-      bubble.set({
+    this.slots.forEach(({ slot, bubble }) => {
+      stopMotion(slot);
+      slot.remove_all_transitions();
+      slot.set({
         opacity: 0,
         scale_x: BUBBLE_START_SCALE,
         scale_y: BUBBLE_START_SCALE,
         translation_x: 0,
-        reactive: false,
       });
+      bubble.reactive = false;
     });
   }
 

@@ -9,3 +9,14 @@ export interface FileEntry {
 export interface DirectoryReader {
   list(directory: string): Promise<readonly FileEntry[]>;
 }
+
+export interface FilePreview {
+  readonly title: string;
+  readonly details: readonly string[];
+  readonly path: string;
+  readonly icon: SearchIcon;
+}
+
+export interface FilePreviewReader {
+  describe(path: string): Promise<FilePreview | null>;
+}
