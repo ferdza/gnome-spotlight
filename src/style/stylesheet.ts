@@ -19,19 +19,19 @@ interface ThemeTokens {
 
 const THEME_TOKENS: Record<ThemeVariant, ThemeTokens> = {
   [ThemeVariant.DARK]: {
-    panelGlass: "rgba(66, 66, 72, 0.5)",
-    panelSolid: "rgba(50, 50, 56, 0.97)",
-    panelBorder: "rgba(255, 255, 255, 0.14)",
+    panelGlass: "rgba(30, 30, 34, 0.55)",
+    panelSolid: "rgba(36, 36, 40, 0.97)",
+    panelBorder: "rgba(255, 255, 255, 0.09)",
     text: "#ffffff",
     dimText: "rgba(255, 255, 255, 0.6)",
     hoverBackground: "rgba(255, 255, 255, 0.08)",
     separator: "rgba(255, 255, 255, 0.1)",
     iconTile: "rgba(255, 255, 255, 0.1)",
     tileSelected: "rgba(255, 255, 255, 0.18)",
-    bubbleFill: "rgba(88, 88, 94, 0.62)",
+    bubbleFill: "rgba(44, 44, 50, 0.72)",
   },
   [ThemeVariant.LIGHT]: {
-    panelGlass: "rgba(255, 255, 255, 0.7)",
+    panelGlass: "rgba(250, 250, 252, 0.6)",
     panelSolid: "rgba(250, 250, 252, 0.97)",
     panelBorder: "rgba(0, 0, 0, 0.08)",
     text: "#1f1f24",
@@ -40,7 +40,7 @@ const THEME_TOKENS: Record<ThemeVariant, ThemeTokens> = {
     separator: "rgba(0, 0, 0, 0.08)",
     iconTile: "rgba(0, 0, 0, 0.06)",
     tileSelected: "rgba(0, 0, 0, 0.12)",
-    bubbleFill: "rgba(255, 255, 255, 0.82)",
+    bubbleFill: "rgba(250, 250, 252, 0.78)",
   },
 };
 
