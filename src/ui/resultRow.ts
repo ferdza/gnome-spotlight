@@ -2,10 +2,13 @@ import Clutter from "gi://Clutter";
 import Pango from "gi://Pango";
 import St from "gi://St";
 
+import { SPRING_SNAPPY } from "@domain/animation/spring";
 import type { SearchResult } from "@domain/search/searchResult";
+import { springTo } from "@ui/motion";
 import { toIconProps } from "@ui/searchIconProps";
 
 const SELECTED = "selected";
+const PRESS_SCALE = 0.98;
 
 const createEllipsizedLabel = (text: string, styleClass: string): St.Label => {
   const label = new St.Label({ text, style_class: styleClass, x_align: Clutter.ActorAlign.START });
@@ -46,7 +49,12 @@ export class ResultRow {
       can_focus: false,
       accessible_name: result.title,
     });
+    this.actor.set_pivot_point(0.5, 0.5);
     this.actor.connect("clicked", onClick);
+    this.actor.connect("notify::pressed", () => {
+      const scale = this.actor.pressed ? PRESS_SCALE : 1;
+      springTo(this.actor, { scale_x: scale, scale_y: scale }, { spring: SPRING_SNAPPY });
+    });
   }
 
   setSelected(isSelected: boolean): void {

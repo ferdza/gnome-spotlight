@@ -3,13 +3,14 @@ import { describe, expect, test } from "bun:test";
 import {
   SPRING_BOUNCY,
   SPRING_DEFAULT,
+  SPRING_GLIDE,
   SPRING_SMOOTH,
   SPRING_SNAPPY,
   springProgress,
   springSettleSeconds,
 } from "@domain/animation/spring";
 
-const SPECS = [SPRING_SMOOTH, SPRING_SNAPPY, SPRING_DEFAULT, SPRING_BOUNCY];
+const SPECS = [SPRING_SMOOTH, SPRING_GLIDE, SPRING_SNAPPY, SPRING_DEFAULT, SPRING_BOUNCY];
 
 const samples = (spec: (typeof SPECS)[number]): number[] => {
   const end = springSettleSeconds(spec);
@@ -24,6 +25,7 @@ describe("mola de Apple (resposta e amortecimento)", () => {
 
   test("amortecimento 1 nunca passa do alvo", () => {
     expect(Math.max(...samples(SPRING_SMOOTH))).toBeLessThanOrEqual(1);
+    expect(Math.max(...samples(SPRING_GLIDE))).toBeLessThanOrEqual(1);
   });
 
   test.each([SPRING_SNAPPY, SPRING_DEFAULT, SPRING_BOUNCY])("abaixo de 1 passa do alvo", (spec) => {

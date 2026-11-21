@@ -89,8 +89,13 @@ Super+Espaço continua sendo "trocar fonte de entrada".
 - `ui/motion.ts` (`springTo`) roda a mola num `Clutter.Timeline` e escreve opacidade, escala,
   translação e altura. Cada propriedade tem um dono: uma animação nova da mesma propriedade
   assume do valor atual, sem salto.
-- Presets: SMOOTH (sem passar), SNAPPY (leve), DEFAULT (0,55 s, 0,825, o padrão do SwiftUI) e
-  BOUNCY. A abertura e as bolhas usam BOUNCY, a altura das listas usa DEFAULT.
+- Presets: GLIDE e SMOOTH (amortecimento 1, nunca passam do alvo), SNAPPY (passa 0,5%), DEFAULT
+  (0,55 s, 0,825, o padrão do SwiftUI) e BOUNCY (ícones e bolhas). Geometria de cartão com blur
+  (largura da barra, altura do volete, abertura) usa spring sem passada (GLIDE/SNAPPY): o Blur
+  my Shell redesenha o blur atrás do ator e passar do alvo faz o blur piscar.
+- Contra cintilação: o volete só recolhe 140 ms depois de ficar vazio (uma lista vazia no meio da
+  digitação não o fecha e abre de novo), uma lista igual à já mostrada não é reconstruída, e as
+  bolhas esperam a abertura assentar (450 ms) antes de a barra encolher.
 - A altura das listas anima do tamanho atual ao novo (`animateHeight`), a lista de apps entra
   com os ícones em escada e o toque numa bolha ou ícone encolhe e solta com mola.
 - `ui/overscrollBounce.ts`: St.ScrollView não tem elástico. Passando do começo ou do fim, o

@@ -9,7 +9,7 @@ import * as Main from "resource:///org/gnome/shell/ui/main.js";
 
 import {
   SPRING_BOUNCY,
-  SPRING_DEFAULT,
+  SPRING_GLIDE,
   SPRING_SMOOTH,
   SPRING_SNAPPY,
 } from "@domain/animation/spring";
@@ -81,7 +81,7 @@ const SEARCH_ICON = "edit-find-symbolic";
 const APP_COLUMNS = 6;
 const TOTAL_WIDTH = 820;
 const TOP_OFFSET_RATIO = 0.25;
-const OPEN_START_SCALE = 0.9;
+const OPEN_START_SCALE = 0.95;
 const OPEN_RISE_PX = 14;
 const CLOSE_END_SCALE = 0.965;
 const CLOSE_MS = 130;
@@ -89,6 +89,12 @@ const FADE_MS = 160;
 const RESULTS_SLIDE_PX = 10;
 const MIN_HEIGHT_CHANGE_PX = 4;
 const REVEAL_DELAY_MS = 650;
+const OPEN_SETTLE_MS = 450;
+const COLLAPSE_DELAY_MS = 140;
+const ROW_STAGGER_MS = 22;
+const ROW_STAGGER_LIMIT = 8;
+const ROW_SLIDE_PX = 8;
+const ICON_POP_SCALE = 0.6;
 const BUBBLE_SIZE = 52;
 const BUBBLE_GAP = 10;
 const BUBBLE_PANEL_GAP = 12;
@@ -168,6 +174,9 @@ export class LauncherOverlay implements LauncherView {
   private mode: BrowseMode | null = null;
   private bubblesShown = false;
   private revealSource = 0;
+  private collapseDrawerSource = 0;
+  private openedAt = 0;
+  private shownSignature = "";
   private quiet = false;
   private readonly overscrolls: OverscrollBounce[] = [];
   private grab: Clutter.Grab | null = null;
@@ -317,6 +326,7 @@ export class LauncherOverlay implements LauncherView {
     this.resetView();
     this.listener?.reset();
     this.entry.grab_key_focus();
+    this.openedAt = GLib.get_monotonic_time();
     this.animateIn();
     this.scheduleReveal();
   }
@@ -325,6 +335,7 @@ export class LauncherOverlay implements LauncherView {
     if (!this.grab) return;
 
     this.cancelTimers();
+    this.cancelDrawerCollapse();
     this.hidePreview();
     Main.popModal(this.grab);
     this.grab = null;
@@ -335,6 +346,7 @@ export class LauncherOverlay implements LauncherView {
     this.listener?.reset();
     this.listener = null;
     this.cancelTimers();
+    this.cancelDrawerCollapse();
     if (this.grab) {
       Main.popModal(this.grab);
       this.grab = null;
@@ -346,7 +358,15 @@ export class LauncherOverlay implements LauncherView {
   renderResults(results: readonly SearchResult[], selectedIndex: number): void {
     if (this.mode === BrowseMode.APPS) return;
 
+    const signature = results.map((result) => `${result.id}\u0000${result.title}`).join("\n");
+    if (signature === this.shownSignature && this.rows.length === results.length) {
+      this.renderSelection(selectedIndex);
+      return;
+    }
+
+    this.shownSignature = signature;
     const previousHeight = this.drawerHeight();
+    const revealing = results.length > 0 && !this.drawer.visible;
     this.resultsBox.destroy_all_children();
     this.rows = results.map(
       (result, index) =>
@@ -361,6 +381,7 @@ export class LauncherOverlay implements LauncherView {
     const hasResults = results.length > 0;
     this.scrollView.visible = hasResults;
     this.syncDrawer(previousHeight);
+    if (revealing) this.animateRowsIn();
     this.renderSelection(selectedIndex);
   }
 
@@ -422,7 +443,7 @@ export class LauncherOverlay implements LauncherView {
       this.onBackdropPress(event),
     );
     this.backdrop.connect("motion-event", () => {
-      this.revealBubbles();
+      if (this.hasSettled()) this.revealBubbles();
       return Clutter.EVENT_PROPAGATE;
     });
   }
@@ -547,7 +568,11 @@ export class LauncherOverlay implements LauncherView {
 
     const spec = BUBBLES.find((bubble) => bubble.mode === mode);
     this.entry.hint_text = spec ? spec.label(this.t) : this.defaultHint();
-    this.entryIcon.icon_name = spec ? spec.icon : SEARCH_ICON;
+    const icon = spec ? spec.icon : SEARCH_ICON;
+    if (this.entryIcon.icon_name !== icon) {
+      this.entryIcon.icon_name = icon;
+      this.popEntryIcon();
+    }
     this.setTextSilently("");
   }
 
@@ -559,6 +584,8 @@ export class LauncherOverlay implements LauncherView {
 
   private resetView(): void {
     this.hidePreview();
+    this.cancelDrawerCollapse();
+    this.shownSignature = "";
     this.applyMode(null);
     this.appScroll.visible = false;
     this.appScroll.set_height(-1);
@@ -801,11 +828,7 @@ export class LauncherOverlay implements LauncherView {
     this.bubblesShown = true;
     this.cancelTimers();
 
-    springTo(
-      this.bar,
-      { width: panelWidthWithBubbles(BUBBLES.length) },
-      { spring: SPRING_DEFAULT },
-    );
+    springTo(this.bar, { width: panelWidthWithBubbles(BUBBLES.length) }, { spring: SPRING_GLIDE });
 
     this.slots.forEach(({ slot, bubble }, index) => {
       const delay = BUBBLE_FIRST_DELAY_MS + index * BUBBLE_STAGGER_MS;
@@ -828,7 +851,7 @@ export class LauncherOverlay implements LauncherView {
     this.bubblesShown = false;
     this.cancelTimers();
 
-    springTo(this.bar, { width: TOTAL_WIDTH }, { spring: SPRING_DEFAULT });
+    springTo(this.bar, { width: TOTAL_WIDTH }, { spring: SPRING_GLIDE });
 
     this.slots.forEach(({ slot, bubble }, index) => {
       bubble.reactive = false;
@@ -866,14 +889,30 @@ export class LauncherOverlay implements LauncherView {
 
   private syncDrawer(previousHeight: number): void {
     if (!this.scrollView.visible && !this.appScroll.visible) {
-      this.collapseDrawer();
+      this.scheduleDrawerCollapse();
       return;
     }
 
+    this.cancelDrawerCollapse();
     const revealing = !this.drawer.visible;
     this.drawer.visible = true;
     if (revealing) this.animateDrawerIn();
     this.animateHeight(this.drawer, revealing ? 0 : previousHeight);
+  }
+
+  private scheduleDrawerCollapse(): void {
+    if (!this.drawer.visible || this.collapseDrawerSource) return;
+
+    this.collapseDrawerSource = GLib.timeout_add(GLib.PRIORITY_DEFAULT, COLLAPSE_DELAY_MS, () => {
+      this.collapseDrawerSource = 0;
+      this.collapseDrawer();
+      return GLib.SOURCE_REMOVE;
+    });
+  }
+
+  private cancelDrawerCollapse(): void {
+    if (this.collapseDrawerSource) GLib.source_remove(this.collapseDrawerSource);
+    this.collapseDrawerSource = 0;
   }
 
   private collapseDrawer(): void {
@@ -883,7 +922,7 @@ export class LauncherOverlay implements LauncherView {
       this.drawer,
       { height: 0 },
       {
-        spring: SPRING_SMOOTH,
+        spring: SPRING_GLIDE,
         onComplete: () => {
           if (this.scrollView.visible || this.appScroll.visible) return;
           this.drawer.visible = false;
@@ -891,6 +930,32 @@ export class LauncherOverlay implements LauncherView {
         },
       },
     );
+  }
+
+  private hasSettled(): boolean {
+    return (GLib.get_monotonic_time() - this.openedAt) / 1000 >= OPEN_SETTLE_MS;
+  }
+
+  private animateRowsIn(): void {
+    this.rows.slice(0, ROW_STAGGER_LIMIT).forEach(({ actor }, index) => {
+      const delay = index * ROW_STAGGER_MS;
+      stopMotion(actor);
+      actor.set({ opacity: 0, translation_y: ROW_SLIDE_PX });
+      springTo(actor, { translation_y: 0 }, { spring: SPRING_SNAPPY, delay });
+      actor.ease({
+        opacity: 255,
+        duration: FADE_MS,
+        delay,
+        mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+      });
+    });
+  }
+
+  private popEntryIcon(): void {
+    stopMotion(this.entryIcon);
+    this.entryIcon.set_pivot_point(0.5, 0.5);
+    this.entryIcon.set({ scale_x: ICON_POP_SCALE, scale_y: ICON_POP_SCALE });
+    springTo(this.entryIcon, { scale_x: 1, scale_y: 1 }, { spring: SPRING_BOUNCY });
   }
 
   private animateHeight(actor: Clutter.Actor, from: number): void {
@@ -903,7 +968,7 @@ export class LauncherOverlay implements LauncherView {
     springTo(
       actor,
       { height: natural },
-      { spring: SPRING_DEFAULT, onComplete: () => actor.set_height(-1) },
+      { spring: SPRING_GLIDE, onComplete: () => actor.set_height(-1) },
     );
   }
 
@@ -917,7 +982,7 @@ export class LauncherOverlay implements LauncherView {
       scale_y: OPEN_START_SCALE,
       translation_y: -OPEN_RISE_PX,
     });
-    springTo(this.stack, { scale_x: 1, scale_y: 1, translation_y: 0 }, { spring: SPRING_BOUNCY });
+    springTo(this.stack, { scale_x: 1, scale_y: 1, translation_y: 0 }, { spring: SPRING_SNAPPY });
     this.stack.ease({
       opacity: 255,
       duration: FADE_MS,

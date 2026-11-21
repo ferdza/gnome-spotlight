@@ -4,9 +4,10 @@ export interface SpringSpec {
 }
 
 export const SPRING_SMOOTH: SpringSpec = { response: 0.5, damping: 1 };
+export const SPRING_GLIDE: SpringSpec = { response: 0.42, damping: 1 };
 export const SPRING_SNAPPY: SpringSpec = { response: 0.38, damping: 0.86 };
 export const SPRING_DEFAULT: SpringSpec = { response: 0.55, damping: 0.825 };
-export const SPRING_BOUNCY: SpringSpec = { response: 0.5, damping: 0.66 };
+export const SPRING_BOUNCY: SpringSpec = { response: 0.5, damping: 0.7 };
 
 const SETTLE_ENVELOPE = 0.002;
 const MAX_SETTLE_SECONDS = 2;
