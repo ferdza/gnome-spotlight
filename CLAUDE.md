@@ -60,6 +60,10 @@ prefixo do log. Classes, arquivos e classes CSS usam o nome genérico `Launcher`
   com o `dialog-corner-radius` dele. Já tentado e descartado: `Shell.BlurEffect` próprio
   (sem raio de canto, sobra quina quadrada; e desfocar a tela inteira não é o efeito
   desejado).
+- Animar TAMANHO de ator com blur (`clipboard-dialog`) quadro a quadro faz o Blur my Shell piscar
+  (faixas pretas): o flou é um ator separado que só acompanha mudança de tamanho no `IDLE`, e o
+  buffer do efeito é realocado a cada quadro. Escala, translação e opacidade ele acompanha na
+  hora. Anime só essas três; tamanho muda de uma vez (ver `morphBar` e `syncDrawer`).
 - Regra do tema GANHA da folha da extensão quando as duas estilizam a mesma propriedade
   (o anel de `StEntry:focus` continuou mesmo com `!important` na nossa). Para mudar
   propriedade que o tema já define num ator nativo, use estilo inline (`style:` /

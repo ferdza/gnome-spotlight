@@ -7,14 +7,7 @@ import {
   type SpringSpec,
 } from "@domain/animation/spring";
 
-export type MotionProperty =
-  | "opacity"
-  | "scale_x"
-  | "scale_y"
-  | "translation_x"
-  | "translation_y"
-  | "height"
-  | "width";
+export type MotionProperty = "opacity" | "scale_x" | "scale_y" | "translation_x" | "translation_y";
 
 export type MotionTargets = Partial<Record<MotionProperty, number>>;
 
@@ -27,18 +20,10 @@ export interface MotionOptions {
 const MAX_OPACITY = 255;
 const running = new WeakMap<Clutter.Actor, Map<MotionProperty, Clutter.Timeline>>();
 
-const readProperty = (actor: Clutter.Actor, property: MotionProperty): number =>
-  property === "height"
-    ? actor.get_height()
-    : property === "width"
-      ? actor.get_width()
-      : actor[property];
+const readProperty = (actor: Clutter.Actor, property: MotionProperty): number => actor[property];
 
 const writeProperty = (actor: Clutter.Actor, property: MotionProperty, value: number): void => {
-  if (property === "height") actor.set_height(Math.max(0, value));
-  else if (property === "width") actor.set_width(Math.max(0, value));
-  else if (property === "opacity")
-    actor.opacity = Math.round(Math.min(Math.max(value, 0), MAX_OPACITY));
+  if (property === "opacity") actor.opacity = Math.round(Math.min(Math.max(value, 0), MAX_OPACITY));
   else actor[property] = value;
 };
 
@@ -108,4 +93,34 @@ export const springTo = (
     onComplete?.();
   });
   timeline.start();
+};
+
+export interface SpringDrive {
+  stop(): void;
+}
+
+export interface DriveOptions {
+  readonly actor: Clutter.Actor;
+  readonly spring?: SpringSpec;
+  readonly delay?: number;
+  readonly onProgress: (progress: number) => void;
+}
+
+export const driveSpring = ({
+  actor,
+  spring = SPRING_SMOOTH,
+  delay = 0,
+  onProgress,
+}: DriveOptions): SpringDrive => {
+  const timeline = new Clutter.Timeline({
+    actor,
+    duration: Math.ceil(springSettleSeconds(spring) * 1000),
+    delay,
+  });
+  timeline.connect("new-frame", (_timeline: Clutter.Timeline, elapsed: number) =>
+    onProgress(springProgress(elapsed / 1000, spring)),
+  );
+  timeline.connect("completed", () => onProgress(1));
+  timeline.start();
+  return { stop: () => timeline.stop() };
 };

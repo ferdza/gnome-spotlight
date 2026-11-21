@@ -11,7 +11,6 @@ import {
   springSecondsToReach,
   SPRING_BOUNCY,
   SPRING_GLIDE,
-  SPRING_QUICK,
   SPRING_SMOOTH,
   SPRING_SNAPPY,
 } from "@domain/animation/spring";
@@ -25,7 +24,7 @@ import { getResultLabel } from "@domain/search/resultKindLabel";
 import type { SearchResult } from "@domain/search/searchResult";
 import type { Translate } from "@i18n/translate";
 import type { LauncherPresenter, LauncherView } from "@ui/launcherPresenter";
-import { springTo, stopMotion } from "@ui/motion";
+import { driveSpring, springTo, stopMotion, type SpringDrive } from "@ui/motion";
 import { OverscrollBounce } from "@ui/overscrollBounce";
 import { PreviewCard } from "@ui/previewCard";
 import { ResultRow, rowKey } from "@ui/resultRow";
@@ -89,7 +88,7 @@ const CLOSE_END_SCALE = 0.965;
 const CLOSE_MS = 130;
 const FADE_MS = 160;
 const RESULTS_SLIDE_PX = 10;
-const MIN_HEIGHT_CHANGE_PX = 4;
+const DRAWER_FADE_OUT_MS = 110;
 const REVEAL_DELAY_MS = 650;
 const OPEN_SETTLE_MS = 450;
 const COLLAPSE_DELAY_MS = 140;
@@ -187,6 +186,9 @@ export class LauncherOverlay implements LauncherView {
   private bubblesShown = false;
   private revealSource = 0;
   private collapseDrawerSource = 0;
+  private barDrive: SpringDrive | null = null;
+  private barSpan = TOTAL_WIDTH;
+  private drawerClosing = false;
   private openedAt = 0;
   private shownSignature = "";
   private quiet = false;
@@ -264,6 +266,8 @@ export class LauncherOverlay implements LauncherView {
     BUBBLES.forEach((spec) => this.bubbleBox.add_child(this.createBubble(spec)));
 
     this.bar.set_width(TOTAL_WIDTH);
+    this.bar.set_pivot_point(0, 0.5);
+    this.entry.set_pivot_point(0, 0.5);
     this.drawer.set_width(TOTAL_WIDTH);
     this.bubbleBox.set_position(TOTAL_WIDTH - bubbleStripWidth(BUBBLES.length), 0);
     this.row = new St.Widget({ width: TOTAL_WIDTH });
@@ -363,6 +367,7 @@ export class LauncherOverlay implements LauncherView {
       Main.popModal(this.grab);
       this.grab = null;
     }
+    this.barDrive?.stop();
     this.overscrolls.forEach((overscroll) => overscroll.dispose());
     this.backdrop.destroy();
   }
@@ -377,7 +382,6 @@ export class LauncherOverlay implements LauncherView {
     }
 
     this.shownSignature = signature;
-    const previousHeight = this.drawerHeight();
     const revealing = results.length > 0 && !this.drawer.visible;
     const reusable = new Map(this.rows.map((row) => [row.key, row]));
     const created: ResultRow[] = [];
@@ -403,7 +407,7 @@ export class LauncherOverlay implements LauncherView {
 
     const hasResults = results.length > 0;
     this.scrollView.visible = hasResults;
-    this.syncDrawer(previousHeight);
+    this.syncDrawer();
     if (revealing) this.animateRowsIn();
     else created.forEach((row) => this.fadeRowIn(row));
     this.renderSelection(selectedIndex);
@@ -616,8 +620,10 @@ export class LauncherOverlay implements LauncherView {
     this.scrollView.visible = false;
     this.scrollView.set_height(-1);
     stopMotion(this.drawer);
+    this.drawer.remove_all_transitions();
+    this.drawerClosing = false;
     this.drawer.visible = false;
-    this.drawer.set_height(-1);
+    this.drawer.opacity = 255;
     this.hideBubbles();
   }
 
@@ -653,15 +659,13 @@ export class LauncherOverlay implements LauncherView {
   private hideApps(): void {
     if (!this.appScroll.visible) return;
 
-    const previousHeight = this.drawerHeight();
     this.appScroll.visible = false;
     this.appBox.destroy_all_children();
     this.tiles = [];
-    this.syncDrawer(previousHeight);
+    this.syncDrawer();
   }
 
   private renderApps(query: string, entrance = false, keepId?: string): void {
-    const previousHeight = this.drawerHeight();
     const matches = filterApps(this.apps.list(), query);
     this.appGrid.setItems(query.trim() ? matches : orderPinnedFirst(matches, this.pins.list()));
     if (keepId) this.appGrid.select(this.appGrid.entries.findIndex((app) => app.id === keepId));
@@ -681,7 +685,7 @@ export class LauncherOverlay implements LauncherView {
 
     this.renderAppSelection();
     if (entrance) this.animateTilesIn();
-    this.syncDrawer(previousHeight);
+    this.syncDrawer();
   }
 
   private animateTilesIn(): void {
@@ -852,7 +856,7 @@ export class LauncherOverlay implements LauncherView {
     this.bubblesShown = true;
     this.cancelTimers();
 
-    springTo(this.bar, { width: panelWidthWithBubbles(BUBBLES.length) }, { spring: SPRING_GLIDE });
+    this.morphBar(panelWidthWithBubbles(BUBBLES.length));
 
     this.slots.forEach(({ slot, bubble }, index) => {
       const delay = uncoverDelayMs(index);
@@ -875,11 +879,7 @@ export class LauncherOverlay implements LauncherView {
     this.bubblesShown = false;
     this.cancelTimers();
 
-    springTo(
-      this.bar,
-      { width: TOTAL_WIDTH },
-      { spring: SPRING_GLIDE, delay: BAR_EXPAND_DELAY_MS },
-    );
+    this.morphBar(TOTAL_WIDTH, BAR_EXPAND_DELAY_MS);
 
     this.slots.forEach(({ slot, bubble }, index) => {
       bubble.reactive = false;
@@ -901,8 +901,10 @@ export class LauncherOverlay implements LauncherView {
   private hideBubbles(): void {
     this.bubblesShown = false;
     this.cancelTimers();
-    stopMotion(this.bar, ["width"]);
+    this.barDrive?.stop();
+    this.barDrive = null;
     this.bar.set_width(TOTAL_WIDTH);
+    this.applyBarScale(TOTAL_WIDTH, 1);
     this.slots.forEach(({ slot, bubble }) => {
       stopMotion(slot);
       slot.remove_all_transitions();
@@ -911,21 +913,44 @@ export class LauncherOverlay implements LauncherView {
     });
   }
 
-  private drawerHeight(): number {
-    return this.drawer.visible ? this.drawer.get_height() : 0;
+  private morphBar(targetWidth: number, delay = 0): void {
+    this.barDrive?.stop();
+    const startScale = this.barSpan / targetWidth;
+    this.bar.set_width(targetWidth);
+    this.applyBarScale(targetWidth, startScale);
+    this.barDrive = driveSpring({
+      actor: this.bar,
+      spring: SPRING_GLIDE,
+      delay,
+      onProgress: (progress) =>
+        this.applyBarScale(targetWidth, startScale + (1 - startScale) * progress),
+    });
   }
 
-  private syncDrawer(previousHeight: number): void {
+  private applyBarScale(targetWidth: number, scale: number): void {
+    this.bar.scale_x = scale;
+    this.entry.scale_x = 1 / scale;
+    this.barSpan = targetWidth * scale;
+  }
+
+  private syncDrawer(): void {
     if (!this.scrollView.visible && !this.appScroll.visible) {
       this.scheduleDrawerCollapse();
       return;
     }
 
     this.cancelDrawerCollapse();
-    const revealing = !this.drawer.visible;
+    if (this.drawerClosing) {
+      this.drawerClosing = false;
+      this.drawer.remove_all_transitions();
+      this.drawer.set({ opacity: 255, translation_y: 0 });
+      return;
+    }
+
+    if (this.drawer.visible) return;
+
     this.drawer.visible = true;
-    if (revealing) this.animateDrawerIn();
-    this.animateHeight(this.drawer, revealing ? 0 : previousHeight);
+    this.animateDrawerIn();
   }
 
   private scheduleDrawerCollapse(): void {
@@ -946,18 +971,19 @@ export class LauncherOverlay implements LauncherView {
   private collapseDrawer(): void {
     if (!this.drawer.visible) return;
 
-    springTo(
-      this.drawer,
-      { height: 0 },
-      {
-        spring: SPRING_QUICK,
-        onComplete: () => {
-          if (this.scrollView.visible || this.appScroll.visible) return;
-          this.drawer.visible = false;
-          this.drawer.set_height(-1);
-        },
+    this.drawerClosing = true;
+    this.drawer.remove_all_transitions();
+    this.drawer.ease({
+      opacity: 0,
+      duration: DRAWER_FADE_OUT_MS,
+      mode: Clutter.AnimationMode.EASE_IN_QUAD,
+      onComplete: () => {
+        if (!this.drawerClosing) return;
+        this.drawerClosing = false;
+        this.drawer.visible = false;
+        this.drawer.opacity = 255;
       },
-    );
+    });
   }
 
   private hasSettled(): boolean {
@@ -1003,20 +1029,6 @@ export class LauncherOverlay implements LauncherView {
     this.entryIcon.set_pivot_point(0.5, 0.5);
     this.entryIcon.set({ scale_x: ICON_POP_SCALE, scale_y: ICON_POP_SCALE });
     springTo(this.entryIcon, { scale_x: 1, scale_y: 1 }, { spring: SPRING_BOUNCY });
-  }
-
-  private animateHeight(actor: Clutter.Actor, from: number): void {
-    stopMotion(actor, ["height"]);
-    actor.set_height(-1);
-    const natural = actor.get_preferred_height(-1)[1];
-    if (Math.abs(natural - from) < MIN_HEIGHT_CHANGE_PX) return;
-
-    actor.set_height(from);
-    springTo(
-      actor,
-      { height: natural },
-      { spring: SPRING_QUICK, onComplete: () => actor.set_height(-1) },
-    );
   }
 
   private animateIn(): void {

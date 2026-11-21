@@ -58,14 +58,14 @@ Super+Espaço continua sendo "trocar fonte de entrada".
 ## Bolhas, modo Apps e modo Arquivos
 
 - Um atalho só. Barra e volete são dois cartões separados dentro de `stack`, de largura fixa
-  `TOTAL_WIDTH`, sempre centrado. O volete (resultados ou grade de apps) NUNCA muda de largura;
-  só a altura anima (`syncDrawer`). No começo a barra é uma só, de ponta a ponta. Depois de
-  650 ms ou no primeiro movimento do mouse a barra ENCOLHE (`springTo` na largura) e as bolhas
-  aparecem, escalonadas, no espaço que sobrou (`revealBubbles`). Ctrl+1 a Ctrl+4 fazem o mesmo
-  pelo teclado.
+  `TOTAL_WIDTH`, sempre centrado. No começo a barra é uma só, de ponta a ponta. Depois de 650 ms
+  ou no primeiro movimento do mouse a barra ENCOLHE e as bolhas aparecem, escalonadas, no espaço
+  que sobrou (`revealBubbles`). Ctrl+1 a Ctrl+4 fazem o mesmo pelo teclado.
 - Ao entrar num modo as bolhas encolhem e a barra se ESTENDE por cima delas, voltando a ser uma
   barra só (`collapseBubbles`). Backspace com a caixa vazia (ou Esc, ou Ctrl+N de novo) volta à
   busca normal e a barra encolhe de novo.
+- O volete nunca anima tamanho: a altura muda de uma vez (como o KRunner), as linhas novas entram
+  com fade e o volete inteiro entra e sai por opacidade e translação.
 - A rolagem horizontal das listas é travada em 0 (`OverscrollBounce`): a grade é mais larga que
   a área visível durante a animação da barra e o touchpad deslizava o conteúdo para o lado.
 - Modo Apps: `domain/apps/appGrid.ts` é o modelo puro (filtro com o mesmo `textMatcher`, ordem
@@ -86,27 +86,26 @@ Super+Espaço continua sendo "trocar fonte de entrada".
   período (ω0 = 2π/response) e `damping` é a razão de amortecimento ζ (1 sem passar do alvo,
   menor que 1 passa e volta). A posição é `1 - e^(-ζω0t)(cos ωd·t + ζω0/ωd · sen ωd·t)`, com
   ωd = ω0·√(1-ζ²). O tempo de assentamento sai do envelope `e^(-ζω0t)` até 0,2%.
-- `ui/motion.ts` (`springTo`) roda a mola num `Clutter.Timeline` e escreve opacidade, escala,
-  translação e altura. Cada propriedade tem um dono: uma animação nova da mesma propriedade
-  assume do valor atual, sem salto.
+- `ui/motion.ts`: `springTo` roda a mola num `Clutter.Timeline` e escreve opacidade, escala e
+  translação (cada propriedade tem um dono: uma animação nova da mesma propriedade assume do
+  valor atual, sem salto); `driveSpring` entrega só o avanço 0..1 para quem anima outra coisa.
 - Presets: GLIDE e SMOOTH (amortecimento 1, nunca passam do alvo), SNAPPY (passa 0,5%), DEFAULT
-  (0,55 s, 0,825, o padrão do SwiftUI) e BOUNCY (ícones e bolhas). Geometria de cartão com blur
-  (largura da barra, altura do volete, abertura) usa spring sem passada (GLIDE/SNAPPY): o Blur
-  my Shell redesenha o blur atrás do ator e passar do alvo faz o blur piscar.
-- Contra cintilação: o volete só recolhe 140 ms depois de ficar vazio (uma lista vazia no meio da
-  digitação não o fecha e abre de novo), uma lista igual à já mostrada não é reconstruída, e as
-  bolhas esperam a abertura assentar (450 ms) antes de a barra encolher.
+  (0,55 s, 0,825, o padrão do SwiftUI) e BOUNCY (ícones e bolhas).
+- Blur my Shell: o flou de um ator `clipboard-dialog` é um ator SEPARADO, recalculado por ele.
+  Escala, translação e opacidade do ator (e dos pais) ele acompanha na hora; mudança de tamanho
+  só no `IDLE`, adiada a cada mudança. Animar largura ou altura de um ator com blur, quadro a
+  quadro, deixa o flou do tamanho antigo e ainda realoca o buffer do efeito a cada quadro
+  (faixas pretas). Por isso a barra recebe a largura final de uma vez e a ANIMAÇÃO é uma escala
+  em X com pivô na esquerda (`morphBar`); a caixa de texto leva a escala inversa para o texto
+  não esticar. O volete só anima opacidade e translação.
 - Cada bolha só aparece quando a borda direita da barra já passou por ela
-  (`springSecondsToReach` inverte a mola da largura): antes disso a bolha translúcida ficava por
-  cima da barra e parecia piscar. Ao contrário, ao entrar num modo as bolhas somem primeiro e a
-  barra só se estende 120 ms depois.
-- A lista de resultados é atualizada por chave (`rowKey`): linha que continua não é recriada nem
-  animada, só entram (com fade) e saem as que mudaram, na ordem nova. É o que o Spotlight faz;
-  recriar tudo a cada letra fazia a lista piscar. A altura do volete anima rápido (`QUICK`).
-- O texto de ajuda da barra é menor (1,25 em) para caber nela já encolhida: se ele cortasse no
-  meio da animação, o corte mudaria a cada quadro.
-- A altura das listas anima do tamanho atual ao novo (`animateHeight`), a lista de apps entra
-  com os ícones em escada e o toque numa bolha ou ícone encolhe e solta com mola.
+  (`springSecondsToReach` inverte a mola): antes disso a bolha translúcida ficava por cima da
+  barra. Ao entrar num modo as bolhas somem primeiro e a barra só se estende 120 ms depois.
+- Contra cintilação: o volete só some 140 ms depois de ficar vazio, e a lista de resultados é
+  atualizada por chave (`rowKey`): linha que continua não é recriada nem animada, só entram (com
+  fade) e saem as que mudaram, na ordem nova. Recriar tudo a cada letra fazia a lista piscar.
+- A lista de apps entra com os ícones em escada e o toque numa bolha ou ícone encolhe e solta
+  com mola.
 - `ui/overscrollBounce.ts`: St.ScrollView não tem elástico. Passando do começo ou do fim, o
   conteúdo é puxado com resistência (`1 - |d|/64`) e volta com mola 90 ms depois do último
   evento de rolagem.
