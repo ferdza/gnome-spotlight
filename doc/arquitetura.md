@@ -96,6 +96,15 @@ Super+Espaço continua sendo "trocar fonte de entrada".
 - Contra cintilação: o volete só recolhe 140 ms depois de ficar vazio (uma lista vazia no meio da
   digitação não o fecha e abre de novo), uma lista igual à já mostrada não é reconstruída, e as
   bolhas esperam a abertura assentar (450 ms) antes de a barra encolher.
+- Cada bolha só aparece quando a borda direita da barra já passou por ela
+  (`springSecondsToReach` inverte a mola da largura): antes disso a bolha translúcida ficava por
+  cima da barra e parecia piscar. Ao contrário, ao entrar num modo as bolhas somem primeiro e a
+  barra só se estende 120 ms depois.
+- A lista de resultados é atualizada por chave (`rowKey`): linha que continua não é recriada nem
+  animada, só entram (com fade) e saem as que mudaram, na ordem nova. É o que o Spotlight faz;
+  recriar tudo a cada letra fazia a lista piscar. A altura do volete anima rápido (`QUICK`).
+- O texto de ajuda da barra é menor (1,25 em) para caber nela já encolhida: se ele cortasse no
+  meio da animação, o corte mudaria a cada quadro.
 - A altura das listas anima do tamanho atual ao novo (`animateHeight`), a lista de apps entra
   com os ícones em escada e o toque numa bolha ou ícone encolhe e solta com mola.
 - `ui/overscrollBounce.ts`: St.ScrollView não tem elástico. Passando do começo ou do fim, o

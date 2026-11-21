@@ -5,6 +5,7 @@ export interface SpringSpec {
 
 export const SPRING_SMOOTH: SpringSpec = { response: 0.5, damping: 1 };
 export const SPRING_GLIDE: SpringSpec = { response: 0.42, damping: 1 };
+export const SPRING_QUICK: SpringSpec = { response: 0.3, damping: 1 };
 export const SPRING_SNAPPY: SpringSpec = { response: 0.38, damping: 0.86 };
 export const SPRING_DEFAULT: SpringSpec = { response: 0.55, damping: 0.825 };
 export const SPRING_BOUNCY: SpringSpec = { response: 0.5, damping: 0.7 };
@@ -35,4 +36,16 @@ export const springSettleSeconds = (spec: SpringSpec): number => {
   const zeta = Math.min(Math.max(spec.damping, 0.05), 1);
   const seconds = -Math.log(SETTLE_ENVELOPE) / (zeta * angularFrequency(spec));
   return Math.min(seconds * (zeta === 1 ? 1.4 : 1), MAX_SETTLE_SECONDS);
+};
+
+const SEARCH_STEP_SECONDS = 0.002;
+
+export const springSecondsToReach = (progress: number, spec: SpringSpec): number => {
+  const target = Math.min(Math.max(progress, 0), 1);
+  const end = springSettleSeconds(spec);
+  for (let seconds = 0; seconds < end; seconds += SEARCH_STEP_SECONDS) {
+    if (springProgress(seconds, spec) >= target) return seconds;
+  }
+
+  return end;
 };

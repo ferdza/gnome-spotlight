@@ -8,8 +8,10 @@ import { MonitorConstraint } from "resource:///org/gnome/shell/ui/layout.js";
 import * as Main from "resource:///org/gnome/shell/ui/main.js";
 
 import {
+  springSecondsToReach,
   SPRING_BOUNCY,
   SPRING_GLIDE,
+  SPRING_QUICK,
   SPRING_SMOOTH,
   SPRING_SNAPPY,
 } from "@domain/animation/spring";
@@ -26,7 +28,7 @@ import type { LauncherPresenter, LauncherView } from "@ui/launcherPresenter";
 import { springTo, stopMotion } from "@ui/motion";
 import { OverscrollBounce } from "@ui/overscrollBounce";
 import { PreviewCard } from "@ui/previewCard";
-import { ResultRow } from "@ui/resultRow";
+import { ResultRow, rowKey } from "@ui/resultRow";
 import { toIconProps } from "@ui/searchIconProps";
 import { applySurface, BLUR_TARGET_CLASS, ENTRY_INLINE_STYLE } from "@ui/surface";
 
@@ -92,18 +94,19 @@ const REVEAL_DELAY_MS = 650;
 const OPEN_SETTLE_MS = 450;
 const COLLAPSE_DELAY_MS = 140;
 const ROW_STAGGER_MS = 22;
+const ROW_FADE_MS = 120;
 const ROW_STAGGER_LIMIT = 8;
 const ROW_SLIDE_PX = 8;
 const ICON_POP_SCALE = 0.6;
 const BUBBLE_SIZE = 52;
 const BUBBLE_GAP = 10;
 const BUBBLE_PANEL_GAP = 12;
-const BUBBLE_STAGGER_MS = 60;
+const EDGE_CLEARANCE_PX = 6;
+const BAR_EXPAND_DELAY_MS = 120;
 const BUBBLE_START_SCALE = 0.35;
 const BUBBLE_HOVER_SCALE = 1.08;
-const COLLAPSE_MS = 150;
+const COLLAPSE_MS = 110;
 const COLLAPSE_STAGGER_MS = 35;
-const BUBBLE_FIRST_DELAY_MS = 90;
 const PRESS_SCALE = 0.93;
 const SELECTED_TILE_SCALE = 1.05;
 const TILE_START_SCALE = 0.82;
@@ -114,6 +117,15 @@ const bubbleStripWidth = (count: number): number => count * BUBBLE_SIZE + (count
 
 const panelWidthWithBubbles = (count: number): number =>
   TOTAL_WIDTH - bubbleStripWidth(count) - BUBBLE_PANEL_GAP;
+
+const bubbleLeft = (index: number): number =>
+  TOTAL_WIDTH - bubbleStripWidth(BUBBLES.length) + index * (BUBBLE_SIZE + BUBBLE_GAP);
+
+const uncoverDelayMs = (index: number): number => {
+  const shrink = TOTAL_WIDTH - panelWidthWithBubbles(BUBBLES.length);
+  const reached = (TOTAL_WIDTH - (bubbleLeft(index) - EDGE_CLEARANCE_PX)) / shrink;
+  return Math.round(springSecondsToReach(reached, SPRING_GLIDE) * 1000);
+};
 
 const PANEL_SURFACE_CLASSES: Record<PanelSurface, string> = {
   [PanelSurface.GLASS]: "launcher-panel-glass",
@@ -367,21 +379,33 @@ export class LauncherOverlay implements LauncherView {
     this.shownSignature = signature;
     const previousHeight = this.drawerHeight();
     const revealing = results.length > 0 && !this.drawer.visible;
-    this.resultsBox.destroy_all_children();
-    this.rows = results.map(
-      (result, index) =>
-        new ResultRow(
-          result,
-          getResultLabel(result, this.t),
-          () => void this.listener?.onActivateAt(index),
-        ),
-    );
-    this.rows.forEach((row) => this.resultsBox.add_child(row.actor));
+    const reusable = new Map(this.rows.map((row) => [row.key, row]));
+    const created: ResultRow[] = [];
+
+    this.rows = results.map((result) => {
+      const kindLabel = getResultLabel(result, this.t);
+      const kept = reusable.get(rowKey(result, kindLabel));
+      if (kept) {
+        reusable.delete(kept.key);
+        return kept;
+      }
+
+      const row: ResultRow = new ResultRow(
+        result,
+        kindLabel,
+        () => void this.listener?.onActivateAt(this.rows.indexOf(row)),
+      );
+      created.push(row);
+      return row;
+    });
+    reusable.forEach((row) => row.actor.destroy());
+    this.rows.forEach((row, index) => this.placeRow(row, index));
 
     const hasResults = results.length > 0;
     this.scrollView.visible = hasResults;
     this.syncDrawer(previousHeight);
     if (revealing) this.animateRowsIn();
+    else created.forEach((row) => this.fadeRowIn(row));
     this.renderSelection(selectedIndex);
   }
 
@@ -831,7 +855,7 @@ export class LauncherOverlay implements LauncherView {
     springTo(this.bar, { width: panelWidthWithBubbles(BUBBLES.length) }, { spring: SPRING_GLIDE });
 
     this.slots.forEach(({ slot, bubble }, index) => {
-      const delay = BUBBLE_FIRST_DELAY_MS + index * BUBBLE_STAGGER_MS;
+      const delay = uncoverDelayMs(index);
       stopMotion(slot);
       bubble.reactive = true;
       slot.set({ opacity: 0, scale_x: BUBBLE_START_SCALE, scale_y: BUBBLE_START_SCALE });
@@ -851,11 +875,15 @@ export class LauncherOverlay implements LauncherView {
     this.bubblesShown = false;
     this.cancelTimers();
 
-    springTo(this.bar, { width: TOTAL_WIDTH }, { spring: SPRING_GLIDE });
+    springTo(
+      this.bar,
+      { width: TOTAL_WIDTH },
+      { spring: SPRING_GLIDE, delay: BAR_EXPAND_DELAY_MS },
+    );
 
     this.slots.forEach(({ slot, bubble }, index) => {
       bubble.reactive = false;
-      const delay = (this.slots.length - 1 - index) * COLLAPSE_STAGGER_MS;
+      const delay = index * COLLAPSE_STAGGER_MS;
       springTo(
         slot,
         { scale_x: BUBBLE_START_SCALE, scale_y: BUBBLE_START_SCALE },
@@ -922,7 +950,7 @@ export class LauncherOverlay implements LauncherView {
       this.drawer,
       { height: 0 },
       {
-        spring: SPRING_GLIDE,
+        spring: SPRING_QUICK,
         onComplete: () => {
           if (this.scrollView.visible || this.appScroll.visible) return;
           this.drawer.visible = false;
@@ -934,6 +962,25 @@ export class LauncherOverlay implements LauncherView {
 
   private hasSettled(): boolean {
     return (GLib.get_monotonic_time() - this.openedAt) / 1000 >= OPEN_SETTLE_MS;
+  }
+
+  private placeRow(row: ResultRow, index: number): void {
+    if (row.actor.get_parent() !== this.resultsBox) {
+      this.resultsBox.insert_child_at_index(row.actor, index);
+      return;
+    }
+
+    if (this.resultsBox.get_child_at_index(index) !== row.actor)
+      this.resultsBox.set_child_at_index(row.actor, index);
+  }
+
+  private fadeRowIn(row: ResultRow): void {
+    row.actor.set({ opacity: 0 });
+    row.actor.ease({
+      opacity: 255,
+      duration: ROW_FADE_MS,
+      mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+    });
   }
 
   private animateRowsIn(): void {
@@ -968,7 +1015,7 @@ export class LauncherOverlay implements LauncherView {
     springTo(
       actor,
       { height: natural },
-      { spring: SPRING_GLIDE, onComplete: () => actor.set_height(-1) },
+      { spring: SPRING_QUICK, onComplete: () => actor.set_height(-1) },
     );
   }
 

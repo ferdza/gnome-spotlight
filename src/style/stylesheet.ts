@@ -62,7 +62,7 @@ const TEMPLATE = `
 
 .launcher-entry {
   padding: 10px 12px;
-  font-size: 1.45em;
+  font-size: 1.25em;
   color: {{text}};
   caret-color: {{text}};
   selection-background-color: -st-accent-color;

@@ -7,6 +7,7 @@ import {
   SPRING_SMOOTH,
   SPRING_SNAPPY,
   springProgress,
+  springSecondsToReach,
   springSettleSeconds,
 } from "@domain/animation/spring";
 
@@ -53,5 +54,24 @@ describe("mola de Apple (resposta e amortecimento)", () => {
       expect(springSettleSeconds(spec)).toBeGreaterThan(0);
       expect(springSettleSeconds(spec)).toBeLessThanOrEqual(2);
     }
+  });
+});
+
+describe("springSecondsToReach", () => {
+  test("começa em 0 e cresce com o avanço pedido", () => {
+    expect(springSecondsToReach(0, SPRING_GLIDE)).toBe(0);
+
+    const early = springSecondsToReach(0.25, SPRING_GLIDE);
+    const late = springSecondsToReach(0.95, SPRING_GLIDE);
+    expect(early).toBeGreaterThan(0);
+    expect(late).toBeGreaterThan(early);
+    expect(late).toBeLessThanOrEqual(springSettleSeconds(SPRING_GLIDE));
+  });
+
+  test("o tempo achado de fato chega ao avanço pedido", () => {
+    const seconds = springSecondsToReach(0.6, SPRING_GLIDE);
+
+    expect(springProgress(seconds, SPRING_GLIDE)).toBeGreaterThanOrEqual(0.6);
+    expect(springProgress(seconds - 0.004, SPRING_GLIDE)).toBeLessThan(0.6);
   });
 });

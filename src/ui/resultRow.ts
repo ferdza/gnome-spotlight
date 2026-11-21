@@ -16,10 +16,15 @@ const createEllipsizedLabel = (text: string, styleClass: string): St.Label => {
   return label;
 };
 
+export const rowKey = (result: SearchResult, kindLabel: string): string =>
+  [result.id, result.title, result.subtitle ?? "", kindLabel].join("\u0000");
+
 export class ResultRow {
   readonly actor: St.Button;
+  readonly key: string;
 
   constructor(result: SearchResult, kindLabel: string, onClick: () => void) {
+    this.key = rowKey(result, kindLabel);
     const texts = new St.BoxLayout({
       orientation: Clutter.Orientation.VERTICAL,
       x_expand: true,
