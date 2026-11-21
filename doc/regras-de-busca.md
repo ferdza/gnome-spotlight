@@ -89,12 +89,12 @@ Esc cancela, Backspace deixa sem atalho, tecla modificadora sozinha espera a pr�
 Letra sem Super, Ctrl ou Alt é recusada (Shift sozinho só faz maiúscula). Tecla de função
 sozinha (F1 a F12) vale.
 
-## Caixa vazia (sugestões)
+## Caixa vazia
 
-Só quem declara `answersEmptyTerm` para o modo é consultado com termo vazio. No modo padrão é o
-`SuggestionSearchProvider`: apps fixados (na ordem em que foram fixados), depois os 5 mais usados
-(`Shell.AppUsage`). Fixar é Ctrl+P ou botão direito num ícone do modo Apps; a lista fica na chave
-`pinned-apps`.
+Só quem declara `answersEmptyTerm` para o modo é consultado com termo vazio (Ações e Área de
+transferência, que listam tudo). No modo padrão a caixa vazia não mostra nada: nenhuma sugestão.
+Apps fixados existem só na grade do modo Apps (Ctrl+P ou botão direito num ícone, chave
+`pinned-apps`); eles vêm primeiro.
 
 ## Arquivos em qualquer pasta (`*`)
 

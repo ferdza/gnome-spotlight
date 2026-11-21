@@ -72,9 +72,6 @@ msgstr ""
 msgid "New keyword search"
 msgstr ""
 
-msgid "Pinned"
-msgstr ""
-
 msgid "Prefixes"
 msgstr ""
 
@@ -112,9 +109,6 @@ msgid "Search the web for “%s”"
 msgstr ""
 
 msgid "Shortcut"
-msgstr ""
-
-msgid "Suggested"
 msgstr ""
 
 msgid "Switch to %s"

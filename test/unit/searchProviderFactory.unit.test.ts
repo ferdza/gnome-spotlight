@@ -45,8 +45,8 @@ const listProviders = createSearchProviders({
 });
 
 describe("createSearchProviders", () => {
-  test("cria as treze fontes da extensão e uma por provedor do panorama que ela não cobre", () => {
-    expect(listProviders()).toHaveLength(15);
+  test("cria as doze fontes da extensão e uma por provedor do panorama que ela não cobre", () => {
+    expect(listProviders()).toHaveLength(14);
   });
 
   test.each(Object.values(QueryMode))("o modo %p tem pelo menos um provedor", (mode) => {

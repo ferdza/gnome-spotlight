@@ -137,12 +137,6 @@ msgstr "Aktionen"
 msgid "Clipboard"
 msgstr "Zwischenablage"
 
-msgid "Pinned"
-msgstr "Angeheftet"
-
-msgid "Suggested"
-msgstr "Vorgeschlagen"
-
 msgid "Search all files"
 msgstr "Alle Dateien durchsuchen"
 

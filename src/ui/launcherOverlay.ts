@@ -148,10 +148,11 @@ export class LauncherOverlay implements LauncherView {
   private readonly backdrop: St.Widget;
   private readonly monitorConstraint: MonitorConstraint;
   private readonly row: St.Widget;
-  private readonly panel: St.BoxLayout;
+  private readonly stack: St.BoxLayout;
+  private readonly bar: St.BoxLayout;
+  private readonly drawer: St.BoxLayout;
   private readonly entry: St.Entry;
   private readonly entryIcon: St.Icon;
-  private readonly separator: St.Widget;
   private readonly scrollView: St.ScrollView;
   private readonly resultsBox: St.BoxLayout;
   private readonly appScroll: St.ScrollView;
@@ -188,8 +189,6 @@ export class LauncherOverlay implements LauncherView {
       style: ENTRY_INLINE_STYLE,
     });
 
-    this.separator = new St.Widget({ style_class: "launcher-separator", visible: false });
-
     this.resultsBox = new St.BoxLayout({
       style_class: "launcher-results",
       orientation: Clutter.Orientation.VERTICAL,
@@ -220,15 +219,22 @@ export class LauncherOverlay implements LauncherView {
       visible: false,
     });
 
-    this.panel = new St.BoxLayout({
-      style_class: `launcher-panel ${BLUR_TARGET_CLASS}`,
+    this.bar = new St.BoxLayout({
+      style_class: `launcher-panel launcher-bar ${BLUR_TARGET_CLASS}`,
       orientation: Clutter.Orientation.VERTICAL,
       reactive: true,
     });
-    this.panel.add_child(this.entry);
-    this.panel.add_child(this.separator);
-    this.panel.add_child(this.scrollView);
-    this.panel.add_child(this.appScroll);
+    this.bar.add_child(this.entry);
+
+    this.drawer = new St.BoxLayout({
+      style_class: `launcher-panel launcher-drawer ${BLUR_TARGET_CLASS}`,
+      orientation: Clutter.Orientation.VERTICAL,
+      reactive: true,
+      clip_to_allocation: true,
+      visible: false,
+    });
+    this.drawer.add_child(this.scrollView);
+    this.drawer.add_child(this.appScroll);
 
     this.bubbleBox = new St.BoxLayout({
       style_class: "launcher-bubbles",
@@ -236,16 +242,24 @@ export class LauncherOverlay implements LauncherView {
     });
     BUBBLES.forEach((spec) => this.bubbleBox.add_child(this.createBubble(spec)));
 
-    this.panel.set_width(TOTAL_WIDTH);
+    this.bar.set_width(TOTAL_WIDTH);
+    this.drawer.set_width(TOTAL_WIDTH);
     this.bubbleBox.set_position(TOTAL_WIDTH - bubbleStripWidth(BUBBLES.length), 0);
     this.row = new St.Widget({ width: TOTAL_WIDTH });
-    this.row.add_child(this.panel);
+    this.row.add_child(this.bar);
     this.row.add_child(this.bubbleBox);
+
+    this.stack = new St.BoxLayout({
+      orientation: Clutter.Orientation.VERTICAL,
+      width: TOTAL_WIDTH,
+    });
+    this.stack.add_child(this.row);
+    this.stack.add_child(this.drawer);
 
     this.backdrop = new St.Widget({ reactive: true });
     this.monitorConstraint = new MonitorConstraint({});
     this.backdrop.add_constraint(this.monitorConstraint);
-    this.backdrop.add_child(this.row);
+    this.backdrop.add_child(this.stack);
     this.backdrop.add_child(this.previewCard.actor);
     this.previewCard.actor.add_constraint(
       new Clutter.AlignConstraint({
@@ -254,7 +268,7 @@ export class LauncherOverlay implements LauncherView {
         factor: 0.5,
       }),
     );
-    this.row.add_constraint(
+    this.stack.add_constraint(
       new Clutter.AlignConstraint({
         source: this.backdrop,
         align_axis: Clutter.AlignAxis.X_AXIS,
@@ -302,7 +316,6 @@ export class LauncherOverlay implements LauncherView {
     this.grab = Main.pushModal(this.backdrop, { actionMode: Shell.ActionMode.SYSTEM_MODAL });
     this.resetView();
     this.listener?.reset();
-    void this.listener?.onQueryChanged("");
     this.entry.grab_key_focus();
     this.animateIn();
     this.scheduleReveal();
@@ -333,7 +346,7 @@ export class LauncherOverlay implements LauncherView {
   renderResults(results: readonly SearchResult[], selectedIndex: number): void {
     if (this.mode === BrowseMode.APPS) return;
 
-    const previousHeight = this.scrollView.visible ? this.scrollView.get_height() : 0;
+    const previousHeight = this.drawerHeight();
     this.resultsBox.destroy_all_children();
     this.rows = results.map(
       (result, index) =>
@@ -346,11 +359,8 @@ export class LauncherOverlay implements LauncherView {
     this.rows.forEach((row) => this.resultsBox.add_child(row.actor));
 
     const hasResults = results.length > 0;
-    const revealing = hasResults && !this.scrollView.visible;
-    this.separator.visible = hasResults;
     this.scrollView.visible = hasResults;
-    if (revealing) this.animateResultsIn();
-    if (hasResults) this.animateHeight(this.scrollView, previousHeight);
+    this.syncDrawer(previousHeight);
     this.renderSelection(selectedIndex);
   }
 
@@ -519,12 +529,7 @@ export class LauncherOverlay implements LauncherView {
 
   private onBackdropPress(event: Clutter.Event): boolean {
     const target = global.stage.get_event_actor(event);
-    if (
-      target &&
-      (this.panel.contains(target) ||
-        this.bubbleBox.contains(target) ||
-        this.previewCard.actor.contains(target))
-    )
+    if (target && (this.stack.contains(target) || this.previewCard.actor.contains(target)))
       return Clutter.EVENT_PROPAGATE;
 
     this.close();
@@ -559,7 +564,9 @@ export class LauncherOverlay implements LauncherView {
     this.appScroll.set_height(-1);
     this.scrollView.visible = false;
     this.scrollView.set_height(-1);
-    this.separator.visible = false;
+    stopMotion(this.drawer);
+    this.drawer.visible = false;
+    this.drawer.set_height(-1);
     this.hideBubbles();
   }
 
@@ -582,41 +589,28 @@ export class LauncherOverlay implements LauncherView {
     this.applyMode(null);
     this.hideApps();
     this.listener?.reset();
-    void this.listener?.onQueryChanged("");
     this.revealBubbles();
   }
 
   private showApps(): void {
-    const previousHeight = this.scrollView.visible ? this.scrollView.get_height() : 0;
     this.listener?.reset();
     this.scrollView.visible = false;
-    this.separator.visible = true;
     this.appScroll.visible = true;
     this.renderApps("", true);
-    this.animateHeight(this.appScroll, previousHeight);
   }
 
   private hideApps(): void {
     if (!this.appScroll.visible) return;
 
-    springTo(
-      this.appScroll,
-      { height: 0 },
-      {
-        spring: SPRING_SMOOTH,
-        onComplete: () => {
-          if (this.mode === BrowseMode.APPS) return;
-          this.appScroll.visible = false;
-          this.appScroll.set_height(-1);
-          this.appBox.destroy_all_children();
-          this.tiles = [];
-        },
-      },
-    );
+    const previousHeight = this.drawerHeight();
+    this.appScroll.visible = false;
+    this.appBox.destroy_all_children();
+    this.tiles = [];
+    this.syncDrawer(previousHeight);
   }
 
   private renderApps(query: string, entrance = false, keepId?: string): void {
-    const previousHeight = this.appScroll.get_height();
+    const previousHeight = this.drawerHeight();
     const matches = filterApps(this.apps.list(), query);
     this.appGrid.setItems(query.trim() ? matches : orderPinnedFirst(matches, this.pins.list()));
     if (keepId) this.appGrid.select(this.appGrid.entries.findIndex((app) => app.id === keepId));
@@ -636,7 +630,7 @@ export class LauncherOverlay implements LauncherView {
 
     this.renderAppSelection();
     if (entrance) this.animateTilesIn();
-    else this.animateHeight(this.appScroll, previousHeight);
+    this.syncDrawer(previousHeight);
   }
 
   private animateTilesIn(): void {
@@ -769,7 +763,8 @@ export class LauncherOverlay implements LauncherView {
   }
 
   private applyPanelSurface(): void {
-    applySurface(this.panel, PANEL_SURFACE_CLASSES);
+    applySurface(this.bar, PANEL_SURFACE_CLASSES);
+    applySurface(this.drawer, PANEL_SURFACE_CLASSES);
     applySurface(this.previewCard.actor, PANEL_SURFACE_CLASSES);
   }
 
@@ -778,8 +773,8 @@ export class LauncherOverlay implements LauncherView {
     if (!monitor) return;
 
     this.monitorConstraint.index = monitor.index;
-    this.row.y = Math.round(monitor.height * TOP_OFFSET_RATIO);
-    this.previewCard.actor.y = this.row.y + PREVIEW_TOP_PX;
+    this.stack.y = Math.round(monitor.height * TOP_OFFSET_RATIO);
+    this.previewCard.actor.y = this.stack.y + PREVIEW_TOP_PX;
   }
 
   private scheduleReveal(): void {
@@ -807,7 +802,7 @@ export class LauncherOverlay implements LauncherView {
     this.cancelTimers();
 
     springTo(
-      this.panel,
+      this.bar,
       { width: panelWidthWithBubbles(BUBBLES.length) },
       { spring: SPRING_DEFAULT },
     );
@@ -833,7 +828,7 @@ export class LauncherOverlay implements LauncherView {
     this.bubblesShown = false;
     this.cancelTimers();
 
-    springTo(this.panel, { width: TOTAL_WIDTH }, { spring: SPRING_DEFAULT });
+    springTo(this.bar, { width: TOTAL_WIDTH }, { spring: SPRING_DEFAULT });
 
     this.slots.forEach(({ slot, bubble }, index) => {
       bubble.reactive = false;
@@ -855,8 +850,8 @@ export class LauncherOverlay implements LauncherView {
   private hideBubbles(): void {
     this.bubblesShown = false;
     this.cancelTimers();
-    stopMotion(this.panel, ["width"]);
-    this.panel.set_width(TOTAL_WIDTH);
+    stopMotion(this.bar, ["width"]);
+    this.bar.set_width(TOTAL_WIDTH);
     this.slots.forEach(({ slot, bubble }) => {
       stopMotion(slot);
       slot.remove_all_transitions();
@@ -865,7 +860,40 @@ export class LauncherOverlay implements LauncherView {
     });
   }
 
-  private animateHeight(actor: St.ScrollView, from: number): void {
+  private drawerHeight(): number {
+    return this.drawer.visible ? this.drawer.get_height() : 0;
+  }
+
+  private syncDrawer(previousHeight: number): void {
+    if (!this.scrollView.visible && !this.appScroll.visible) {
+      this.collapseDrawer();
+      return;
+    }
+
+    const revealing = !this.drawer.visible;
+    this.drawer.visible = true;
+    if (revealing) this.animateDrawerIn();
+    this.animateHeight(this.drawer, revealing ? 0 : previousHeight);
+  }
+
+  private collapseDrawer(): void {
+    if (!this.drawer.visible) return;
+
+    springTo(
+      this.drawer,
+      { height: 0 },
+      {
+        spring: SPRING_SMOOTH,
+        onComplete: () => {
+          if (this.scrollView.visible || this.appScroll.visible) return;
+          this.drawer.visible = false;
+          this.drawer.set_height(-1);
+        },
+      },
+    );
+  }
+
+  private animateHeight(actor: Clutter.Actor, from: number): void {
     stopMotion(actor, ["height"]);
     actor.set_height(-1);
     const natural = actor.get_preferred_height(-1)[1];
@@ -880,17 +908,17 @@ export class LauncherOverlay implements LauncherView {
   }
 
   private animateIn(): void {
-    stopMotion(this.panel);
-    this.panel.remove_all_transitions();
-    this.panel.set_pivot_point(0.5, 0.2);
-    this.panel.set({
+    stopMotion(this.stack);
+    this.stack.remove_all_transitions();
+    this.stack.set_pivot_point(0.5, 0.2);
+    this.stack.set({
       opacity: 0,
       scale_x: OPEN_START_SCALE,
       scale_y: OPEN_START_SCALE,
       translation_y: -OPEN_RISE_PX,
     });
-    springTo(this.panel, { scale_x: 1, scale_y: 1, translation_y: 0 }, { spring: SPRING_BOUNCY });
-    this.panel.ease({
+    springTo(this.stack, { scale_x: 1, scale_y: 1, translation_y: 0 }, { spring: SPRING_BOUNCY });
+    this.stack.ease({
       opacity: 255,
       duration: FADE_MS,
       mode: Clutter.AnimationMode.EASE_OUT_QUAD,
@@ -899,7 +927,7 @@ export class LauncherOverlay implements LauncherView {
 
   private animateOut(): void {
     springTo(
-      this.panel,
+      this.stack,
       { scale_x: CLOSE_END_SCALE, scale_y: CLOSE_END_SCALE },
       { spring: SPRING_SMOOTH },
     );
@@ -913,12 +941,12 @@ export class LauncherOverlay implements LauncherView {
     });
   }
 
-  private animateResultsIn(): void {
-    stopMotion(this.scrollView, ["translation_y"]);
-    this.scrollView.remove_all_transitions();
-    this.scrollView.set({ opacity: 0, translation_y: -RESULTS_SLIDE_PX });
-    springTo(this.scrollView, { translation_y: 0 }, { spring: SPRING_SNAPPY });
-    this.scrollView.ease({
+  private animateDrawerIn(): void {
+    stopMotion(this.drawer, ["translation_y"]);
+    this.drawer.remove_all_transitions();
+    this.drawer.set({ opacity: 0, translation_y: -RESULTS_SLIDE_PX });
+    springTo(this.drawer, { translation_y: 0 }, { spring: SPRING_SNAPPY });
+    this.drawer.ease({
       opacity: 255,
       duration: FADE_MS,
       mode: Clutter.AnimationMode.EASE_OUT_QUAD,

@@ -134,12 +134,6 @@ msgstr "Ações"
 msgid "Clipboard"
 msgstr "Área de transferência"
 
-msgid "Pinned"
-msgstr "Fixado"
-
-msgid "Suggested"
-msgstr "Sugerido"
-
 msgid "Search all files"
 msgstr "Buscar em todos os arquivos"
 

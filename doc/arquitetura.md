@@ -57,14 +57,17 @@ Super+Espaço continua sendo "trocar fonte de entrada".
 
 ## Bolhas, modo Apps e modo Arquivos
 
-- Um atalho só. O grupo (barra + bolhas) tem largura fixa `TOTAL_WIDTH` e fica sempre centrado:
-  nada desliza para o lado. No começo é uma barra só, de ponta a ponta. Depois de 650 ms ou no
-  primeiro movimento do mouse a barra ENCOLHE (`springTo` na largura do painel) e as bolhas
+- Um atalho só. Barra e volete são dois cartões separados dentro de `stack`, de largura fixa
+  `TOTAL_WIDTH`, sempre centrado. O volete (resultados ou grade de apps) NUNCA muda de largura;
+  só a altura anima (`syncDrawer`). No começo a barra é uma só, de ponta a ponta. Depois de
+  650 ms ou no primeiro movimento do mouse a barra ENCOLHE (`springTo` na largura) e as bolhas
   aparecem, escalonadas, no espaço que sobrou (`revealBubbles`). Ctrl+1 a Ctrl+4 fazem o mesmo
   pelo teclado.
 - Ao entrar num modo as bolhas encolhem e a barra se ESTENDE por cima delas, voltando a ser uma
   barra só (`collapseBubbles`). Backspace com a caixa vazia (ou Esc, ou Ctrl+N de novo) volta à
   busca normal e a barra encolhe de novo.
+- A rolagem horizontal das listas é travada em 0 (`OverscrollBounce`): a grade é mais larga que
+  a área visível durante a animação da barra e o touchpad deslizava o conteúdo para o lado.
 - Modo Apps: `domain/apps/appGrid.ts` é o modelo puro (filtro com o mesmo `textMatcher`, ordem
   alfabética, movimento nas setas). A view desenha uma grade de 5 colunas com TODOS os apps,
   sem categorias, dentro do próprio painel; digitar filtra.

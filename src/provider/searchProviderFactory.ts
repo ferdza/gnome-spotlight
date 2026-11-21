@@ -22,7 +22,6 @@ import { FileIndexSearchProvider } from "@provider/fileIndexSearchProvider";
 import { FileSearchProvider } from "@provider/fileSearchProvider";
 import { KeywordSearchProvider } from "@provider/keywordSearchProvider";
 import { isCoveredByLauncher, OverviewSearchProvider } from "@provider/overviewSearchProvider";
-import { SuggestionSearchProvider } from "@provider/suggestionSearchProvider";
 import { SystemActionSearchProvider } from "@provider/systemActionSearchProvider";
 import { UnitConversionSearchProvider } from "@provider/unitConversionSearchProvider";
 import { WebResultsSearchProvider } from "@provider/webResultsSearchProvider";
@@ -52,7 +51,6 @@ export const createSearchProviders = (
 ): (() => readonly SearchProvider[]) => {
   const launcherProviders: readonly SearchProvider[] = [
     new AppSearchProvider(deps.apps),
-    new SuggestionSearchProvider(deps.apps, deps.pins, deps.translate),
     new WindowSearchProvider(deps.windows, deps.translate),
     new CalculatorSearchProvider(deps.clipboard, deps.translate),
     new UnitConversionSearchProvider(deps.unitConverter, deps.clipboard, deps.translate),

@@ -19,7 +19,7 @@ interface ThemeTokens {
 
 const THEME_TOKENS: Record<ThemeVariant, ThemeTokens> = {
   [ThemeVariant.DARK]: {
-    panelGlass: "rgba(30, 30, 34, 0.55)",
+    panelGlass: "rgba(30, 30, 34, 0.42)",
     panelSolid: "rgba(36, 36, 40, 0.97)",
     panelBorder: "rgba(255, 255, 255, 0.09)",
     text: "#ffffff",
@@ -28,10 +28,10 @@ const THEME_TOKENS: Record<ThemeVariant, ThemeTokens> = {
     separator: "rgba(255, 255, 255, 0.1)",
     iconTile: "rgba(255, 255, 255, 0.1)",
     tileSelected: "rgba(255, 255, 255, 0.18)",
-    bubbleFill: "rgba(44, 44, 50, 0.72)",
+    bubbleFill: "rgba(44, 44, 50, 0.6)",
   },
   [ThemeVariant.LIGHT]: {
-    panelGlass: "rgba(250, 250, 252, 0.6)",
+    panelGlass: "rgba(250, 250, 252, 0.5)",
     panelSolid: "rgba(250, 250, 252, 0.97)",
     panelBorder: "rgba(0, 0, 0, 0.08)",
     text: "#1f1f24",
@@ -40,7 +40,7 @@ const THEME_TOKENS: Record<ThemeVariant, ThemeTokens> = {
     separator: "rgba(0, 0, 0, 0.08)",
     iconTile: "rgba(0, 0, 0, 0.06)",
     tileSelected: "rgba(0, 0, 0, 0.12)",
-    bubbleFill: "rgba(250, 250, 252, 0.78)",
+    bubbleFill: "rgba(250, 250, 252, 0.66)",
   },
 };
 
@@ -78,10 +78,8 @@ const TEMPLATE = `
   color: {{dimText}};
 }
 
-.launcher-separator {
-  height: 1px;
-  margin: 4px 6px 6px;
-  background-color: {{separator}};
+.launcher-drawer {
+  margin-top: 10px;
 }
 
 .launcher-scroll {

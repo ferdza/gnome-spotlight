@@ -19,6 +19,10 @@ export class OverscrollBounce {
     private readonly content: Clutter.Actor,
   ) {
     scroll.connect("scroll-event", (_actor, event: Clutter.Event) => this.onScroll(event));
+    const horizontal = scroll.hadjustment;
+    horizontal.connect("notify::value", () => {
+      if (horizontal.value !== 0) horizontal.set_value(0);
+    });
   }
 
   dispose(): void {
@@ -28,6 +32,8 @@ export class OverscrollBounce {
   }
 
   private onScroll(event: Clutter.Event): boolean {
+    if (this.isHorizontal(event)) return Clutter.EVENT_STOP;
+
     const delta = this.deltaOf(event);
     if (delta === 0) return Clutter.EVENT_PROPAGATE;
 
@@ -50,6 +56,16 @@ export class OverscrollBounce {
     );
     this.scheduleRelease();
     return Clutter.EVENT_STOP;
+  }
+
+  private isHorizontal(event: Clutter.Event): boolean {
+    const direction = event.get_scroll_direction();
+    if (direction === Clutter.ScrollDirection.LEFT || direction === Clutter.ScrollDirection.RIGHT)
+      return true;
+    if (direction !== Clutter.ScrollDirection.SMOOTH) return false;
+
+    const [dx, dy] = event.get_scroll_delta();
+    return Math.abs(dx) > Math.abs(dy);
   }
 
   private deltaOf(event: Clutter.Event): number {

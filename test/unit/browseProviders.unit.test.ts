@@ -5,53 +5,16 @@ import { parseQuery } from "@domain/query/queryParser";
 import type { SearchProvider } from "@domain/search/searchProvider";
 import { ClipboardSearchProvider } from "@provider/clipboardSearchProvider";
 import { FileIndexSearchProvider } from "@provider/fileIndexSearchProvider";
-import { SuggestionSearchProvider } from "@provider/suggestionSearchProvider";
 import { SystemActionSearchProvider } from "@provider/systemActionSearchProvider";
 import { SearchService } from "@service/searchService";
 
 import {
   identity,
-  makeAppCatalog,
   makeClipboard,
   makeLauncher,
   makeOverviewCatalog,
-  makePinnedApps,
   makeSystemActionCatalog,
-  makeApp,
 } from "../support/fakes";
-
-describe("SuggestionSearchProvider", () => {
-  const apps = [
-    makeApp({ id: "a.desktop", name: "A", usage: 0.2 }),
-    makeApp({ id: "b.desktop", name: "B", usage: 0.9 }),
-    makeApp({ id: "c.desktop", name: "C", usage: 0 }),
-  ];
-
-  test("fixados primeiro, depois os mais usados, sem repetir", async () => {
-    const { catalog } = makeAppCatalog(apps);
-    const { pins } = makePinnedApps(["c.desktop", "b.desktop"]);
-    const provider = new SuggestionSearchProvider(catalog, pins, identity);
-
-    const results = await provider.search(parseQuery(""));
-
-    expect(results.map((result) => [result.title, result.label])).toEqual([
-      ["C", "Pinned"],
-      ["B", "Pinned"],
-      ["A", "Suggested"],
-    ]);
-    expect(results[0]!.score).toBeGreaterThan(results[1]!.score);
-  });
-
-  test("só responde com a caixa vazia e ativar abre o app", async () => {
-    const { catalog, launched } = makeAppCatalog(apps);
-    const provider = new SuggestionSearchProvider(catalog, makePinnedApps().pins, identity);
-
-    expect(await provider.search(parseQuery("a"))).toEqual([]);
-    const [first] = await provider.search(parseQuery(""));
-    await first?.activate();
-    expect(launched).toEqual(["b.desktop"]);
-  });
-});
 
 describe("ClipboardSearchProvider", () => {
   const build = () => {
