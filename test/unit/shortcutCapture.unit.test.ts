@@ -54,6 +54,9 @@ describe("classifyShortcutPress", () => {
     [press("Escape", { hasSuper: true })],
     [press("F12")],
     [press("F5", { hasShift: true })],
+    [press("F23", { hasSuper: true, hasShift: true })],
+    [press("XF86Assistant")],
+    [press("XF86AudioMicMute")],
   ])("combinação válida é aceita", (input) => {
     expect(classifyShortcutPress(input)).toBe(ShortcutCapture.ACCEPT);
   });

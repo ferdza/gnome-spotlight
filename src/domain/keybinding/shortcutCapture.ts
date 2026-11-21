@@ -20,6 +20,7 @@ type CaptureRule = (press: ShortcutPress) => ShortcutCapture | null;
 const MODIFIER_KEY =
   /^(Super|Control|Alt|Shift|Meta|Hyper)_[LR]$|^ISO_Level\d_(Shift|Latch|Lock)$|^Caps_Lock$/;
 const FUNCTION_KEY = /^F\d{1,2}$/;
+const SPECIAL_KEY = /^XF86\w+$/;
 
 const hasCommandModifier = (press: ShortcutPress): boolean =>
   press.hasSuper || press.hasControl || press.hasAlt;
@@ -31,6 +32,7 @@ const CAPTURE_RULES: readonly CaptureRule[] = [
   (press) => (isBare(press) && press.keyName === "Escape" ? ShortcutCapture.CANCEL : null),
   (press) => (isBare(press) && press.keyName === "BackSpace" ? ShortcutCapture.CLEAR : null),
   (press) => (FUNCTION_KEY.test(press.keyName) ? ShortcutCapture.ACCEPT : null),
+  (press) => (SPECIAL_KEY.test(press.keyName) ? ShortcutCapture.ACCEPT : null),
   (press) => (hasCommandModifier(press) ? ShortcutCapture.ACCEPT : null),
 ];
 
