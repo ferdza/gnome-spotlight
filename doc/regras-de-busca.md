@@ -114,3 +114,7 @@ tem como saber se o texto veio de um gerenciador de senhas. Enter copia o item d
 Resultado com `preview` (arquivo, pasta, item da área de transferência) abre um cartão flutuante;
 as setas atualizam o cartão, Esc ou Ctrl+Y fecham. Arquivo: nome, tipo, tamanho, data, miniatura
 (imagens aparecem em tamanho grande).
+
+Tecla especial (`XF86…`, como a tecla Copilot, que envia Super+Maj+`XF86Assistant`) é guardada pelo
+CÓDIGO da tecla, por exemplo `<Shift><Super>0xc9`: o nome da tecla não é estável entre
+teclados, o código é. As preferências mostram `Shift + Super + 0xc9`.

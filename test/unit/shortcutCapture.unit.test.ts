@@ -6,8 +6,11 @@ import { describe, expect, test } from "bun:test";
 
 import {
   classifyShortcutPress,
+  describeHardwareAccelerator,
+  hardwareAccelerator,
   ShortcutCapture,
   type ShortcutPress,
+  usesHardwareKey,
 } from "@domain/keybinding/shortcutCapture";
 
 const press = (
@@ -60,4 +63,35 @@ describe("classifyShortcutPress", () => {
   ])("combinação válida é aceita", (input) => {
     expect(classifyShortcutPress(input)).toBe(ShortcutCapture.ACCEPT);
   });
+});
+
+describe("teclas sem nome estável (como a tecla Copilot)", () => {
+  test.each([
+    ["XF86Assistant", true],
+    ["XF86AudioMicMute", true],
+    ["", true],
+    ["F23", false],
+    ["space", false],
+  ])("%p usa o código da tecla: %s", (keyName, expected) => {
+    expect(usesHardwareKey(keyName)).toBe(expected);
+  });
+
+  test("o atalho leva os modificadores e o código em hexadecimal", () => {
+    expect(
+      hardwareAccelerator(press("XF86Assistant", { hasSuper: true, hasShift: true }), 201),
+    ).toBe("<Shift><Super>0xc9");
+    expect(hardwareAccelerator(press("XF86Assistant"), 201)).toBe("0xc9");
+  });
+
+  test("descreve o atalho por código para mostrar nas preferências", () => {
+    expect(describeHardwareAccelerator("<Shift><Super>0xc9")).toBe("Shift + Super + 0xc9");
+    expect(describeHardwareAccelerator("0xc9")).toBe("0xc9");
+  });
+
+  test.each([["<Super>space"], [""], ["<Control><Alt>k"]])(
+    "%p não é atalho por código",
+    (value) => {
+      expect(describeHardwareAccelerator(value)).toBeNull();
+    },
+  );
 });

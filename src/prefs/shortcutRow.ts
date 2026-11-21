@@ -6,8 +6,11 @@ import { gettext as _ } from "resource:///org/gnome/Shell/Extensions/js/extensio
 
 import {
   classifyShortcutPress,
+  describeHardwareAccelerator,
+  hardwareAccelerator,
   ShortcutCapture,
   type ShortcutPress,
+  usesHardwareKey,
 } from "@domain/keybinding/shortcutCapture";
 
 type CaptureHandler = (dialog: Adw.AlertDialog, accelerator: string) => void;
@@ -41,7 +44,10 @@ export class ShortcutRow {
   }
 
   private syncLabel(): void {
-    this.label.set_accelerator(this.settings.get_strv(this.key)[0] ?? "");
+    const accelerator = this.settings.get_strv(this.key)[0] ?? "";
+    const hardware = describeHardwareAccelerator(accelerator);
+    this.label.disabled_text = hardware ?? _("Disabled");
+    this.label.set_accelerator(hardware ? "" : accelerator);
   }
 
   private openCaptureDialog(): void {
@@ -54,8 +60,8 @@ export class ShortcutRow {
     const controller = new Gtk.EventControllerKey();
     controller.connect(
       "key-pressed",
-      (_controller, keyval: number, _keycode: number, state: Gdk.ModifierType) =>
-        this.onKeyPressed(dialog, keyval, state),
+      (_controller, keyval: number, keycode: number, state: Gdk.ModifierType) =>
+        this.onKeyPressed(dialog, keyval, keycode, state),
     );
     dialog.add_controller(controller);
 
@@ -64,12 +70,20 @@ export class ShortcutRow {
     dialog.present(this.row);
   }
 
-  private onKeyPressed(dialog: Adw.AlertDialog, keyval: number, state: Gdk.ModifierType): boolean {
+  private onKeyPressed(
+    dialog: Adw.AlertDialog,
+    keyval: number,
+    keycode: number,
+    state: Gdk.ModifierType,
+  ): boolean {
     const mask = state & Gtk.accelerator_get_default_mod_mask();
     const lowerKeyval = Gdk.keyval_to_lower(keyval);
-    const capture = classifyShortcutPress(toShortcutPress(lowerKeyval, mask));
+    const press = toShortcutPress(lowerKeyval, mask);
+    const accelerator = usesHardwareKey(press.keyName)
+      ? hardwareAccelerator(press, keycode)
+      : (Gtk.accelerator_name(lowerKeyval, mask) ?? "");
 
-    this.captureHandlers[capture](dialog, Gtk.accelerator_name(lowerKeyval, mask) ?? "");
+    this.captureHandlers[classifyShortcutPress(press)](dialog, accelerator);
     return Gdk.EVENT_STOP;
   }
 
